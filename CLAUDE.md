@@ -106,6 +106,7 @@ SKILLS=(
 4. `allowed-tools`에 본문에서 실제로 호출하는 도구만 명시 (과다 권한 금지)
 5. `scripts/build-skills.sh`의 `SKILLS` 배열에 등록
 6. 빌드 실행은 사용자에게 위임 (자동 실행 금지)
+7. **사용자 테스트는 project scope에서 먼저 한다** — 전역 배포 전에 `--scope project --project-dir <path>`로 배포해 실전에서 한 번 이상 호출·검증한 뒤 global 배포를 승인한다. 초기 설계는 실전에서 구멍이 드러나기 쉽고, 전역 선배포는 다른 세션에 섣부르게 영향을 준다.
 
 ---
 
