@@ -1,0 +1,5 @@
+---
+allowed-tools: Read, Write, Bash, mcp__mcp-atlassian__confluence_create_page, mcp__mcp-atlassian__confluence_upload_attachment
+description: 사용자가 쓴 Markdown 초안을 Confluence Cloud에 storage format으로 업로드한다. GFM alert/체크박스/expand/TOC 같은 깨지기 쉬운 요소는 네이티브 매크로로 자동 치환하고, mermaid/plantuml/d2 코드블록은 Kroki로 렌더링해 첨부+이미지 임베드로 바꾼다. 새 페이지 생성 전용.
+disable-model-invocation: false
+---
