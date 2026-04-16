@@ -1,0 +1,4 @@
+---
+name: confluence-fetch
+description: Confluence Cloud 페이지를 Markdown 파일로 내려받아 현재 작업 디렉토리에 저장한다.
+---

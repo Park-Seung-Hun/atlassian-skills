@@ -1,0 +1,5 @@
+---
+allowed-tools: Read, Write, Bash, mcp__mcp-atlassian__confluence_search, mcp__mcp-atlassian__confluence_get_page, mcp__mcp-atlassian__confluence_get_attachments, mcp__mcp-atlassian__confluence_download_attachment
+description: Confluence Cloud 페이지를 Markdown 파일로 내려받아 현재 작업 디렉토리에 저장한다.
+disable-model-invocation: false
+---
