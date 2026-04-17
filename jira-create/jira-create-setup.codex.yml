@@ -1,0 +1,4 @@
+---
+name: jira-create-setup
+description: jira-create 스킬에 필요한 Jira 프로젝트 설정을 수집하고 ~/.agents/sprint-workflow-config.md에 저장한다.
+---

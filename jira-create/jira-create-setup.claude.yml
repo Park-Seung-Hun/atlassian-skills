@@ -1,0 +1,5 @@
+---
+allowed-tools: mcp__mcp-atlassian__jira_get_agile_boards, mcp__mcp-atlassian__jira_search_fields, mcp__slack__slack_get_users, AskUserQuestion, Read, Write
+description: jira-create 스킬에 필요한 Jira 프로젝트 설정을 수집하고 ~/.claude/sprint-workflow-config.md에 저장한다.
+disable-model-invocation: false
+---

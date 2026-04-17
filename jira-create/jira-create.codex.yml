@@ -1,0 +1,4 @@
+---
+name: jira-create
+description: 지정한 Jira 프로젝트에 이슈를 생성한다. PBI(Story/Task/Bug/Spike)와 Sub-task를 지원하며, 팀 작성 지침을 준수한다. 생성 후 Slack DM으로 알림을 전송한다.
+---
