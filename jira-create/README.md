@@ -14,6 +14,8 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 - [워크플로우](#워크플로우)
   - [프로젝트 설정](#프로젝트-설정)
   - [이슈 생성](#이슈-생성)
+  - [SDD 템플릿 시스템](#sdd-템플릿-시스템)
+  - [일괄 생성](#일괄-생성)
 - [특정 이슈만 다른 프로젝트로 생성할 때](#특정-이슈만-다른-프로젝트로-생성할-때)
 - [고도화 로드맵](#고도화-로드맵)
 
@@ -25,6 +27,8 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 |------|--------|------|
 | `jira-create-setup.md` | `/jira-create-setup` | 프로젝트 설정 (초기 및 재설정) |
 | `jira-create.md` | `/jira-create` | 이슈 생성 |
+| `jira-batch-create-setup.md` | `/jira-batch-create-setup` | SDD 파싱 템플릿 등록 |
+| `jira-batch-create.md` | `/jira-batch-create` | SDD 기반 이슈 일괄 생성 |
 
 ---
 
@@ -96,6 +100,51 @@ flowchart TD
     W -- 성공 --> V
     W -- 실패 --> X["경고 메시지 포함"]
     X --> V
+```
+
+### /jira-batch-create-setup 플로우
+
+```mermaid
+flowchart TD
+    A(["/jira-batch-create-setup"]) --> B{templates.yml 존재?}
+    B -- 없음 --> C[템플릿 이름 지정]
+    B -- 있음 --> D{추가/수정/삭제?}
+    D -- 추가 --> C
+    D -- 수정 --> E[수정할 템플릿 선택]
+    D -- 삭제 --> F[삭제 후 저장]
+    C --> G[샘플 SDD 입력]
+    E --> G
+    G --> H[파싱 규칙 자동 생성]
+    H --> I{확인?}
+    I -- 수정 --> H
+    I -- 저장 --> J[templates.yml 저장]
+    F --> K([완료])
+    J --> K
+```
+
+### /jira-batch-create 플로우
+
+```mermaid
+flowchart TD
+    A(["/jira-batch-create"]) --> B{config.md?}
+    B -- 없음 --> C[인라인 설정 수집]
+    B -- 유효 --> D[설정 로드]
+    C & D --> E[SDD 입력 수집]
+    E --> F{templates.yml 매칭?}
+    F -- 실패 --> G([템플릿 미등록 오류])
+    F -- 성공 --> H[SDD 파싱]
+    H --> I[파싱 결과 확인]
+    I --> J[배치 기본값 수집\n우선순위·스프린트·증거]
+    J --> K[개별 이슈 보강\n요약·목적·범위·AC·증거·SP]
+    K --> L[콘텐츠 검증]
+    L --> M[미리보기 확인]
+    M --> N[Phase A: Epic 생성]
+    N --> O[Phase B: PBI 일괄 생성]
+    O --> P[Phase C: Sub-task 일괄 생성]
+    P --> Q{Slack 활성?}
+    Q -- 예 --> R[Slack DM]
+    Q -- 아니오 --> S([결과 리포트])
+    R --> S
 ```
 
 ---
@@ -210,6 +259,48 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 
 ---
 
+### SDD 템플릿 시스템
+
+SDD(설계 문서) 파싱 규칙을 템플릿으로 정의하고, `jira-sdd-templates.yml`에 등록한다.
+
+```
+/jira-batch-create-setup
+```
+
+1. 샘플 SDD 제공 (파일 경로 또는 붙여넣기)
+2. Claude가 파싱 규칙 자동 생성
+3. 확인 후 저장
+
+템플릿은 SDD의 구조(헤딩 레벨, 마커, 태그)를 Jira 이슈 타입으로 매핑한다:
+
+| SDD 요소 | Jira 이슈 타입 |
+|----------|---------------|
+| 문서 제목 | Epic |
+| User Story Phase | Story |
+| 태그 있는 Task (`[USn]`) | Sub-task |
+| 태그 없는 Task | Task (PBI) |
+
+---
+
+### 일괄 생성
+
+```
+/jira-batch-create [SDD 파일 경로]
+예) /jira-batch-create ./specs/tasks.md
+```
+
+SDD를 파싱하여 Epic/PBI/Sub-task를 한 플로우에서 일괄 생성한다:
+
+1. SDD 입력 → 등록된 템플릿과 자동 매칭
+2. 파싱 결과 확인 (계층 테이블)
+3. 배치 기본값 수집 (우선순위, 스프린트, 증거)
+4. 개별 이슈 보강 (목적/범위/AC/증거/SP — Claude가 SDD 컨텍스트로 초안 생성)
+5. 미리보기 확인
+6. 3단계 계층 순서로 생성 (Epic → PBI → Sub-task)
+7. 결과 리포트
+
+---
+
 ## 특정 이슈만 다른 프로젝트로 생성할 때
 
 config를 바꾸지 않고 한 번만 다른 프로젝트 키를 사용하려면:
@@ -226,20 +317,11 @@ config를 바꾸지 않고 한 번만 다른 프로젝트 키를 사용하려면
 
 현재 스킬의 확장 방향을 정리한다. 각 기능은 독립적으로 구현 가능하되, 조합 시 시너지가 발생한다.
 
-### 1. 일괄 생성 (Batch Creation)
+### 1. 일괄 생성 (Batch Creation) ✅ 구현 완료
 
-**무엇을**: 여러 이슈를 한 플로우에서 정의하고 일괄 생성한다.
-
-**왜**: 스프린트 계획 시 5~10개 이슈를 연속 생성하는 케이스가 빈번하다. 현재는 이슈당 8+ 턴의 대화가 필요해 비효율적이다.
-
-**핵심 설계**:
-- 마크다운 리스트/테이블로 여러 이슈를 한 번에 정의 (예: `- [Story] 로그인 페이지에 소셜 로그인 버튼 추가`)
-- 일괄 파싱 후 전체 미리보기 테이블을 출력하고, 개별 수정을 거쳐 한 번에 생성
-- Epic 세트 생성: Epic 1개 + 하위 PBI N개를 한 플로우로 처리 (Epic 생성 후 자동 parent 연결)
-- `jira_batch_create_issues` MCP 도구 활용으로 API 호출 최소화
-- 부분 실패 처리: 성공 건 유지 + 실패 건만 원인 리포트 + 재시도 옵션
-
-**활용할 MCP 도구**: `jira_batch_create_issues`, `jira_update_issue`, `jira_link_to_epic`
+`/jira-batch-create` + `/jira-batch-create-setup`으로 구현됨.
+SDD(설계 문서) 기반 Epic/PBI/Sub-task 3단계 계층 일괄 생성을 지원한다.
+SDD 파싱 템플릿 시스템으로 다양한 SDD 포맷에 대응 가능.
 
 ### 2. 이슈 연결 (Issue Linking)
 

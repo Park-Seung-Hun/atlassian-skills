@@ -1,0 +1,4 @@
+---
+name: jira-batch-create
+description: SDD(설계 문서)를 파싱하여 Epic/PBI/Sub-task를 일괄 생성한다. spec kit task 포맷을 지원하며, 생성 후 선택적으로 Slack DM 알림을 전송한다.
+---

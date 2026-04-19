@@ -1,0 +1,5 @@
+---
+allowed-tools: AskUserQuestion, Read, Write
+description: jira-batch-create 스킬에 사용할 SDD 파싱 템플릿을 등록하고 관리한다.
+disable-model-invocation: false
+---
