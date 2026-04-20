@@ -66,8 +66,11 @@ template_name:
   tasks:
     subtask:
       marker: "- [ ]"
-      tag: "태그 패턴"        # 이 태그가 있으면 Sub-task
-      parent: "matched_story" # 태그 번호에 해당하는 Story가 parent
+      tags:                    # 복수 태그 패턴 지원
+        - pattern: "태그 패턴"  # 예: "[US*]" — Story 하위 Sub-task
+          parent: "matched_story"
+        - pattern: "태그 패턴"  # 예: "[T*]" — Task 하위 Sub-task
+          parent: "matched_task"
     task:
       marker: "- [ ]"
       no_tag: true           # 태그 없는 태스크 → Task (PBI)

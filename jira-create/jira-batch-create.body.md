@@ -28,8 +28,10 @@ SDD 파싱 규칙은 `/jira-batch-create-setup`으로 등록한 템플릿을 사
 
 - 템플릿의 `headings` 규칙으로 Epic / Story / Phase 분류
 - 템플릿의 `tasks` 규칙으로 Task / Sub-task 분류 및 parent 연결
-  - Sub-task의 parent: 태그(예: `[US1]`)에서 번호를 추출하여 해당 Story를 parent로 연결
-  - Task의 parent: Epic
+  - Sub-task 판별: 템플릿의 `tags` 배열에 정의된 패턴과 순차 매칭
+    - `[USn]` 태그: 해당 번호의 User Story를 parent로 연결
+    - `[Tnnn]` 태그: 해당 ID의 Task를 parent로 연결 (예: `[T003]` → T003 Task가 parent)
+  - 두 패턴 모두 해당하지 않는 체크리스트 항목: Task (PBI), Epic이 parent
 - 템플릿의 `metadata` 규칙으로 목적 / 목표 / AC 힌트 / 파일 경로 추출
 - Phase 그룹(`issue: false`)은 이슈로 생성하지 않지만, 하위 Task의 컨텍스트(목적 등)로 활용
 - `[P]` 플래그는 정보용, `(Priority: P1)` 등은 우선순위 힌트로 저장
