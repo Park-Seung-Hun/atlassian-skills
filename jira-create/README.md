@@ -38,7 +38,12 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 
 ```mermaid
 flowchart TD
-    A(["/jira-create-setup"]) --> B{config.md 존재?}
+    A(["/jira-create-setup"]) --> A1{저장 범위 선택}
+    A1 -- 프로젝트 --> A2["CWD 기본 경로 제시
+    (Enter=승인 / 경로 입력=수정)"]
+    A1 -- 글로벌 --> A3["글로벌 경로 사용
+    ~/.claude/... 또는 ~/.agents/..."]
+    A2 & A3 --> B{config.md 존재?}
     B -- 없음·YOUR_ 포함 --> C[프로젝트 키 수집]
     B -- 유효한 설정 --> D{재설정?}
     D -- 아니오 --> Z([종료])
@@ -62,10 +67,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A(["/jira-create"]) --> B{config.md?}
-    B -- 없음·YOUR_ --> C["인라인 수집
+    A(["/jira-create"]) --> B0[config 탐색]
+    B0 --> B1{"CWD/.claude/... 존재?"}
+    B1 -- 예 --> B{유효?}
+    B1 -- 아니오 --> B2{"~/.claude/... 존재?"}
+    B2 -- 예 --> B
+    B2 -- 아니오 --> C["인라인 수집
     프로젝트 키·보드·필드
     Slack ID=(none) 고정"]
+    B -- 없음·YOUR_ --> C
     B -- 유효 --> D{"$ARGUMENTS에
     프로젝트 키?"}
     D -- 예: 오버라이드 --> E[보드·필드 재탐색\nSlack ID 유지]
@@ -188,7 +198,7 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 | Claude Code | `~/.claude/commands/jira-create.md`, `jira-create-setup.md` |
 | Codex | `~/.agents/skills/jira-create/`, `~/.agents/skills/jira-create-setup/` |
 
-스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create-setup`으로 각각 설정한다.
+스킬은 **프로젝트 범위 config** (`<CWD>/.claude/sprint-workflow-config.md` 또는 `<CWD>/.agents/sprint-workflow-config.md`) 와 **글로벌 범위 config** (`~/.claude/...` / `~/.agents/...`) 를 모두 지원한다. 소비 스킬(`/jira-create`, `/jira-batch-create`)은 CWD 프로젝트 config를 먼저 찾고, 없으면 글로벌로 fallback한다. 프로젝트마다 다른 Jira 프로젝트를 쓴다면 각 프로젝트 디렉토리에서 `/jira-create-setup`을 실행하며 "프로젝트" 범위를 선택하라.
 
 > 같은 config 파일은 `sprint/` 스킬 묶음(`/sprint-bootstrap`, `/sprint-sync`, `/sprint-close`)도 공유한다. Notion 동기화를 함께 쓰려면 `/jira-create-setup` 다음에 `/sprint-setup`을 실행해 `## Notion` 섹션을 채워라.
 
@@ -205,12 +215,15 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 
 에이전트가 순서대로 진행한다:
 
-1. **기존 설정 확인** -- 환경에 맞는 설정 파일이 있으면 재설정 여부 확인
-2. **프로젝트 키** -- `$ARGUMENTS`에 없으면 직접 입력 요청
-3. **보드 탐색** -- `jira_get_agile_boards`로 보드 목록 조회 후 선택
-4. **커스텀 필드 탐색** -- `jira_search_fields`로 스토리 포인트 / AC / 증거 필드 자동 매핑
-5. **Slack 알림 설정** -- 사용 여부 확인 후 사용 시 표시 이름으로 ID 자동 조회
-6. **설정 파일 저장** -- Claude: `~/.claude/sprint-workflow-config.md`, Codex: `~/.agents/sprint-workflow-config.md`
+1. **저장 범위 선택** -- 프로젝트(현재 CWD 하위) 또는 글로벌(홈 디렉토리) 중 선택. 프로젝트 선택 시 CWD 기준 기본 경로를 제시하고 사용자가 수정 가능
+2. **기존 설정 확인** -- 선택된 위치에 설정 파일이 있으면 재설정 여부 확인
+3. **프로젝트 키** -- `$ARGUMENTS`에 없으면 직접 입력 요청
+4. **보드 탐색** -- `jira_get_agile_boards`로 보드 목록 조회 후 선택
+5. **커스텀 필드 탐색** -- `jira_search_fields`로 스토리 포인트 / AC / 증거 필드 자동 매핑
+6. **Slack 알림 설정** -- 사용 여부 확인 후 사용 시 표시 이름으로 ID 자동 조회
+7. **설정 파일 저장** -- 저장 범위에 따라:
+   - 프로젝트: Claude `<CWD>/.claude/sprint-workflow-config.md`, Codex `<CWD>/.agents/sprint-workflow-config.md`
+   - 글로벌: Claude `~/.claude/sprint-workflow-config.md`, Codex `~/.agents/sprint-workflow-config.md`
 
 설정 결과 예시:
 ```
@@ -226,7 +239,11 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 ```
 
 > 설정 파일(`sprint-workflow-config.md`)은 개인 정보를 포함한다. **절대 git에 커밋하지 말 것.**
-> `.gitignore`에 해당 파일 경로를 추가하라.
+> 프로젝트 범위로 저장한 경우 해당 저장소의 `.gitignore`에 아래 경로를 추가하라:
+> ```
+> .claude/sprint-workflow-config.md
+> .agents/sprint-workflow-config.md
+> ```
 
 기존 설정이 있으면 재설정 여부를 확인한 뒤 덮어쓴다. 프로젝트가 바뀌거나 필드 ID가 변경된 경우에도 동일하게 실행하면 된다.
 
@@ -253,9 +270,17 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 | 7 | Slack DM 알림 |
 | 8 | 결과 출력 |
 
+#### config 탐색 순서
+
+`/jira-create`는 Step 0-0에서 아래 순서로 config를 탐색한다:
+
+1. `<CWD>/.claude/sprint-workflow-config.md` (Codex: `<CWD>/.agents/sprint-workflow-config.md`)
+2. `~/.claude/sprint-workflow-config.md` (Codex: `~/.agents/sprint-workflow-config.md`)
+3. 둘 다 없거나 PROJECT_KEY가 `YOUR_`로 시작하면 인라인 수집
+
 #### config 미설정 시 동작
 
-설정 파일(`sprint-workflow-config.md`)이 없거나 값이 `YOUR_`로 시작하면, `/jira-create-setup` 없이도 Step 0에서 인라인으로 설정을 수집한다. 단, 수집한 값은 config.md에 저장되지 않으므로 매번 수집된다. 지속 사용 시 `/jira-create-setup`을 먼저 실행하는 것을 권장한다.
+인라인 수집 경로에서는 `/jira-create-setup` 없이도 프로젝트 키·보드·필드를 그 자리에서 받는다. 단, 수집한 값은 config.md에 저장되지 않으므로 매번 수집된다. 지속 사용 시 `/jira-create-setup`을 먼저 실행하는 것을 권장한다.
 
 ---
 

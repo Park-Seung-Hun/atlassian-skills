@@ -3,17 +3,38 @@
 > - `mcp-atlassian`, `notion`, `slack` MCP 서버가 등록돼 있어야 한다(스킬에 따라 사용하는 서버는 일부만 해당).
 > - 본문에서 `mcp__<server>__<tool>` 풀네임으로 표기된 도구는 Claude Code/Codex 양 환경에서 동일하게 모델에 노출된다.
 > - 본문에 "AskUserQuestion"이라고 적힌 부분은 구조화 질문 도구를 의미한다. 해당 도구가 없는 환경(예: Codex)에서는 동일 의미의 자연어 질문으로 대체하되, 선택지/검증 조건은 본문에 명시된 그대로 유지한다.
-> - 설정 파일 경로 `{{CONFIG_PATH}}`는 두 환경이 워크스페이스 루트 기준으로 공유한다.
+> - 설정 파일은 **프로젝트 범위**(`<CWD>/{{CONFIG_LOCAL_REL}}`) 또는 **글로벌 범위**(`{{CONFIG_PATH_GLOBAL}}`)에 저장할 수 있다. Step 1에서 위치를 결정한다.
 
 
 # Jira Create 초기 설정
 
-jira-create 스킬이 사용하는 `{{CONFIG_PATH}}` 파일을 생성한다.
+jira-create 스킬이 사용하는 설정 파일을 생성한다. 저장 위치는 프로젝트/글로벌 중 선택하며, `CONFIG_FILE` 변수로 Step 전반에서 공유한다.
 
 
-## Step 1 — 기존 설정 확인
+## Step 1 — 저장 위치 선택
 
-`{{CONFIG_PATH}}` 파일을 Read 도구로 읽는다.
+AskUserQuestion으로 저장 범위를 묻는다:
+
+> "설정을 어디에 저장할까요?
+> - 프로젝트: 현재 작업 디렉토리에 저장 (프로젝트별로 다른 Jira 프로젝트 설정 유지)
+> - 글로벌: 홈 디렉토리에 저장 (모든 프로젝트에서 공유)"
+
+### 1-1. 프로젝트 선택 시
+
+1. 기본 경로를 제시한다. 현재 작업 디렉토리를 CWD로 쓴다(Bash 도구로 `pwd` 실행하여 절대 경로 확인).
+   > "프로젝트 config를 아래 경로에 저장합니다:
+   > `<CWD>/{{CONFIG_LOCAL_REL}}`
+   > 이대로 진행할까요? (Enter=승인 / 다른 절대 경로 입력 시 수정)"
+2. 사용자가 다른 경로를 입력하면 그 경로를 사용한다. 입력값이 디렉토리로 끝나면 `{{CONFIG_FILENAME}}`을 자동 붙인다.
+3. 확정된 경로를 `CONFIG_FILE`에 저장한다.
+
+### 1-2. 글로벌 선택 시
+
+`CONFIG_FILE`을 `{{CONFIG_PATH_GLOBAL}}`로 설정한다.
+
+### 1-3. 기존 설정 확인
+
+`CONFIG_FILE` 파일을 Read 도구로 읽는다.
 
 - 파일이 존재하고 `YOUR_`로 시작하는 값이 없으면:
   > "설정이 이미 존재합니다. 재설정하시겠습니까? (예/아니오)"
@@ -84,8 +105,8 @@ jira-create 스킬이 사용하는 `{{CONFIG_PATH}}` 파일을 생성한다.
 
 ## Step 6 — config.md 저장
 
-`{{CONFIG_PATH}}` 파일을 아래 형식으로 작성한다.
-(파일이 이미 존재하면 덮어쓴다)
+Step 1에서 확정한 `CONFIG_FILE` 경로에 아래 형식으로 작성한다.
+(파일이 이미 존재하면 덮어쓴다. 프로젝트 저장 시 대상 디렉토리(`.claude/` 또는 `.agents/`)가 없으면 Bash 도구로 `mkdir -p`를 먼저 실행한다.)
 
 ```
 # 개인 설정 (Personal Config)
@@ -116,7 +137,7 @@ Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
 ```
 ✅ 설정 완료!
 
-저장 위치: {{CONFIG_PATH}}
+저장 위치: {CONFIG_FILE}
 
 설정 내용:
 - 프로젝트 키: {PROJECT_KEY}
@@ -128,5 +149,10 @@ Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
 
 이제 /jira-create 커맨드를 사용할 수 있습니다.
 
-⚠️ {{CONFIG_PATH}} 파일은 git에 커밋하지 마세요.
+⚠️ {CONFIG_FILE} 파일은 git에 커밋하지 마세요.
+```
+
+프로젝트 범위로 저장한 경우 추가 안내:
+```
+💡 프로젝트 범위로 저장되었습니다. `.gitignore`에 `{{CONFIG_LOCAL_REL}}`을 추가하는 것을 권장합니다.
 ```
