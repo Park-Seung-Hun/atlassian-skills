@@ -140,7 +140,7 @@ flowchart TD
     L --> M[미리보기 확인]
     M --> N[Phase A: Epic 생성]
     N --> O[Phase B: PBI 일괄 생성]
-    O --> P[Phase C: Sub-task 일괄 생성]
+    O --> P[Phase C: Sub-task 개별 생성]
     P --> Q{Slack 활성?}
     Q -- 예 --> R[Slack DM]
     Q -- 아니오 --> S([결과 리포트])
@@ -297,6 +297,8 @@ SDD를 파싱하여 Epic/PBI/Sub-task를 한 플로우에서 일괄 생성한다
 4. 개별 이슈 보강 (목적/범위/AC/증거/SP — Claude가 SDD 컨텍스트로 초안 생성)
 5. 미리보기 확인
 6. 3단계 계층 순서로 생성 (Epic → PBI → Sub-task)
+   - Epic·PBI는 `jira_batch_create_issues` + 후처리 체인으로 일괄 생성
+   - Sub-task는 Jira 제약(생성 시 parent 필수)과 batch API 제한(additional_fields 미지원)이 겹쳐 개별 `jira_create_issue`로 생성
 7. 결과 리포트
 
 ---

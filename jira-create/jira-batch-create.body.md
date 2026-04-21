@@ -281,8 +281,15 @@ AskUserQuestion: "이대로 생성 / 수정 / 취소"
 
 3단계 계층의 의존 관계를 보장한다:
 1. **Phase A**: Epic 생성 (key 확보 필수)
-2. **Phase B**: PBI(Story/Task) 생성 (Epic key를 parent로 사용)
-3. **Phase C**: Sub-task 생성 (PBI key를 parent로 사용)
+2. **Phase B**: PBI(Story/Task) 생성 (Epic key를 parent로 사용) — `jira_batch_create_issues` + 후처리 체인
+3. **Phase C**: Sub-task 생성 (PBI key를 parent로 사용) — Jira 제약상 batch API를 쓰지 않고 Sub-task 하나씩 `jira_create_issue`로 생성한다
+
+> **Phase B와 Phase C가 다른 경로를 쓰는 이유**
+> 두 가지 서로 다른 제약이 겹쳐 있다.
+> 1. **batch API 제한**: `jira_batch_create_issues`는 `additional_fields`를 지원하지 않는다(허용 필드는 `project_key / summary / issue_type / description / assignee / components`뿐). 즉 parent·priority·커스텀 필드는 create 시점에 설정할 수 없고 사후 `jira_update_issue`로 붙여야 한다.
+> 2. **Sub-task parent 제약**: Jira는 Sub-task를 생성할 때 parent를 필수로 요구한다. parent 없이는 create 자체가 거절된다.
+>
+> Phase B(Story/Task)는 parent 없이도 create 가능하므로 제약 1만 남고, batch 경로를 쓸 수 있다. Phase C(Sub-task)는 제약 1과 2가 동시에 걸려서 batch로는 절대 생성이 불가능하다. 그래서 Phase C만 `jira_create_issue` + `additional_fields.parent` 경로를 쓴다.
 
 ### 6-3. Phase A — Epic 생성
 
@@ -360,28 +367,56 @@ jira_batch_create_issues({
 각 PBI의 issue_key를 내부 참조에 매핑한다.
 부분 실패 시: 성공 건만 후속 처리, 실패 PBI의 하위 Sub-task도 보류한다.
 
-### 6-5. Phase C — Sub-task 일괄 생성
+### 6-5. Phase C — Sub-task 개별 생성
 
-Phase B와 동일한 패턴으로 처리한다:
+Sub-task는 `jira_batch_create_issues`를 사용하지 않는다(6-2 주석 참조). 각 Sub-task마다 아래 3단계 호출 체인을 **순차 실행**한다.
 
-`jira_batch_create_issues`로 일괄 생성 (`validate_only` 사전 검증 포함).
+> **Sub-task 타입명 해석**: `issue_type`에는 Jira 인스턴스가 실제로 인식하는 타입명을 넣어야 한다. MCP 스키마는 표준 식별자로 `Subtask`를 권하지만, 한국어 인스턴스는 `하위 작업`, 일부 인스턴스는 `Sub-task`를 쓴다. Step 0에서 확정된 타입명이 있으면 그대로 사용하고, 없으면 Phase B에서 생성한 PBI 중 하나에 대해 `jira_get_issue`로 프로젝트의 Sub-task `issuetype.name`을 1회 조회해 캐싱한 뒤 재사용한다.
 
-각 Sub-task 후처리:
-- **호출 2**: `jira_update_issue` — 커스텀 필드(AC/EV) + parent(PBI key) + priority + timetracking
+**호출 1 — `jira_create_issue` (parent 포함 생성)**:
+- `project_key`: Step 0의 `{PROJECT_KEY}`
+- `issue_type`: 위에서 해석한 Sub-task 타입명
+- `summary`: 확정된 요약
+- `assignee`: 6-1에서 획득한 email
+- `description`: **설정하지 않는다** (빈 티켓)
+- `additional_fields`:
   ```json
   {
-    "{FIELD_AC}": "1. 완료 조건 1\n2. 완료 조건 2",
-    "{FIELD_EV}": "증거 텍스트",
-    "parent": "{PBI_KEY}",
-    "timetracking": {"originalEstimate": "4h"}
+    "parent": "{PBI_KEY}"
   }
   ```
-  - Sub-task에는 스토리 포인트를 부여하지 않는다 (`{FIELD_SP}` 키 생략)
-- **호출 3**: `jira_update_issue` — description만 단독 설정
+  - Sub-task는 Jira 제약으로 parent를 create 시점에 반드시 포함한다.
+  - priority / 커스텀 필드 / timetracking은 이 호출에 포함하지 않는다.
 
-> **Sub-task 주의**: parent를 호출 2에서 설정해야 한다. `jira_create_issue` 또는 `jira_batch_create_issues` 시점에 parent를 설정하면 자동화 룰이 즉시 발동하여 이후 커스텀 필드 설정이 초기화될 수 있다.
+**호출 2 — `jira_update_issue` (커스텀 필드 + priority + timetracking)**:
+```json
+{
+  "{FIELD_AC}": "1. 완료 조건 1\n2. 완료 조건 2",
+  "{FIELD_EV}": "증거 텍스트",
+  "priority": {"name": "Medium"},
+  "timetracking": {"originalEstimate": "4h"}
+}
+```
+- `{FIELD_AC}`: 완료 조건을 `\n` 구분 번호 목록 (FIELD_AC가 `(none)`이면 키 생략)
+- `{FIELD_EV}`: 증거 텍스트 (FIELD_EV가 `(none)`이거나 미수집이면 키 생략)
+- `priority`: 확정된 우선순위 (없으면 생략)
+- `timetracking.originalEstimate`: 입력된 경우만 포함
+- **Sub-task에는 스토리 포인트(`{FIELD_SP}`)를 부여하지 않는다.**
+- `parent`는 호출 1에서 설정되었으므로 이 호출에는 포함하지 않는다.
 
-부분 실패 시: 성공 건만 후속, 실패 건 리포트.
+**호출 3 — `jira_update_issue` (description 단독 설정)**:
+```json
+{
+  "description": "## 목적\n{확정된 목적 텍스트}\n\n## 범위\n**포함**\n- ...\n\n**제외**\n- ..."
+}
+```
+반드시 마지막에 단독 호출한다. 호출 1에서 parent가 설정되면 자동화 룰이 description을 빈 템플릿으로 덮을 수 있으므로, 호출 3을 마지막에 두어 최종 값을 유지한다.
+
+> **Sub-task 예외 규칙**: Phase B에서 "parent는 호출 2에서 설정한다"는 원칙은 Sub-task에는 적용되지 않는다. Sub-task는 Jira 제약상 create 시점 parent가 필수이기 때문이다. 자동화 룰이 description을 초기화해도 호출 3이 덮어쓰므로 문제되지 않는다. 자동화 룰이 커스텀 필드까지 초기화한다는 증거는 현재 없으며, 만약 실환경에서 관측되면 호출 2를 재실행하는 방식으로 대응한다.
+
+**병렬성**: 같은 부모 PBI 아래 Sub-task를 병렬 호출하지 않는다. 자동화 룰 재진입 타이밍 리스크를 피하기 위해 전체를 순차로 실행한다.
+
+**부분 실패 처리**: 특정 Sub-task의 호출 1/2/3 중 어느 단계라도 실패하면 해당 Sub-task만 실패/부분 완료로 집계하고, 같은 부모의 나머지 Sub-task와 다른 부모의 Sub-task 생성은 중단 없이 계속한다. 실패 항목은 Step 8 리포트의 `⚠️ 부분 완료` 또는 `❌ 생성 실패`에 반영한다.
 
 ### 6-6. 스프린트 일괄 배정
 
@@ -454,7 +489,8 @@ jira_add_issues_to_sprint(
 
 AskUserQuestion: "실패 건을 재시도하시겠습니까? (예/아니오)"
 - "예": 실패 건만 추출하여 Step 6의 해당 Phase부터 재실행
-  - 생성 실패: `jira_create_issue` 단건으로 fallback
+  - 생성 실패 (Phase A/B): `jira_create_issue` 단건으로 fallback
+  - 생성 실패 (Phase C): 이미 단건 경로이므로 해당 Sub-task의 3단계 호출 체인을 그대로 다시 실행
   - 보강 실패: 해당 `jira_update_issue`만 재실행
 
 8pt PBI가 포함된 경우:
