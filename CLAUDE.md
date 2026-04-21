@@ -73,7 +73,7 @@ bash scripts/build-skills.sh --target claude       # Claude만
 bash scripts/build-skills.sh --target codex        # Codex만
 bash scripts/build-skills.sh --scope global        # ~/.claude/ , ~/.agents/ (기본값)
 bash scripts/build-skills.sh --scope project --project-dir <path>
-                                                    # <path>/.claude/commands/ 에 설치
+                                                    # <path>/.claude/commands/ , <path>/.agents/skills/ 에 설치
 ```
 
 ### 배포 경로
@@ -81,9 +81,9 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 | target | scope=global | scope=project |
 |--------|--------------|---------------|
 | claude | `~/.claude/commands/<name>.md` | `<project>/.claude/commands/<name>.md` |
-| codex  | `~/.agents/skills/<name>/SKILL.md` | (Codex는 전역만 지원 — project scope 시 skip 또는 경고) |
+| codex  | `~/.agents/skills/<name>/SKILL.md` | `<project>/.agents/skills/<name>/SKILL.md` |
 
-Codex Agent Skills는 표준상 사용자 디렉토리(`~/.agents/skills/`)에서만 자동 인식된다. 프로젝트 scope에서는 Claude만 배포하는 것이 자연스럽다.
+Codex는 세션 실행 시 현재 작업 디렉토리에서 저장소 루트까지 올라가며 `.agents/skills`를 스캔하고, 그 뒤 `$HOME/.agents/skills`·`/etc/codex/skills`·내장 스킬 순으로 읽는다([공식 문서](https://developers.openai.com/codex/skills)). 따라서 project scope로 배포한 Codex 스킬은 해당 프로젝트 안에서 Codex를 실행할 때만 노출된다.
 
 ### `SKILLS` 등록 형식
 
