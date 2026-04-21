@@ -58,9 +58,12 @@ description: <claude.yml과 동일한 한 문장>
 ## 본문 작성 규칙
 
 - `<name>.body.md`는 **frontmatter 없이 순수 본문**으로 작성한다. 빌드 시 프론트매터가 prepend된다.
-- **`{{CONFIG_PATH}}`** 토큰을 사용하면 빌드 시 환경별 config 경로로 치환된다:
-  - Claude → `~/.claude/sprint-workflow-config.md` (예시; 스킬에 따라 다른 파일을 정의해도 됨)
-  - Codex → `~/.agents/sprint-workflow-config.md`
+- **config 토큰**: 빌드 시 환경별 경로로 치환된다. 용도에 따라 사용:
+  - `{{CONFIG_PATH}}` / `{{CONFIG_PATH_GLOBAL}}` → 글로벌 절대 경로. Claude `~/.claude/sprint-workflow-config.md`, Codex `~/.agents/sprint-workflow-config.md`. 두 토큰은 동의어(기존 호환 유지).
+  - `{{CONFIG_LOCAL_REL}}` → 프로젝트 범위 상대 경로. Claude `.claude/sprint-workflow-config.md`, Codex `.agents/sprint-workflow-config.md`.
+  - `{{CONFIG_LOCAL_DIR}}` → 프로젝트 범위 디렉토리명. Claude `.claude`, Codex `.agents`.
+  - `{{CONFIG_FILENAME}}` → `sprint-workflow-config.md` (양 환경 공통).
+  - 프로젝트/글로벌 2단 저장을 지원하는 스킬은 setup에서 `{{CONFIG_LOCAL_REL}}`·`{{CONFIG_PATH_GLOBAL}}`을 조합해 저장 위치를 결정하고, 소비 스킬은 `<CWD>/{{CONFIG_LOCAL_REL}}` → `{{CONFIG_PATH_GLOBAL}}` → 인라인 fallback 순으로 로드한다.
 - **공유 본문**(shared body): 여러 스킬이 공통 단계(예: 워크플로우 hub)를 공유할 경우, hub 본문 파일(`<hub>.body.md`)을 만들고 빌드 등록 시 `shared_body` 컬럼에 hub 이름을 적는다. 빌드 시 hub 본문의 `## Step 0` 이후 내용이 각 스킬 본문 앞에 inline-prepend된다.
 
 ---

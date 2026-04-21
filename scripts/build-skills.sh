@@ -22,8 +22,13 @@ SKILL_FILTER=""
 DEPLOY_COUNT=0
 
 # ── CONFIG_PATH 치환 맵 ──
-CONFIG_PATH_CLAUDE="~/.claude/sprint-workflow-config.md"
-CONFIG_PATH_CODEX="~/.agents/sprint-workflow-config.md"
+CONFIG_FILENAME="sprint-workflow-config.md"
+CONFIG_PATH_CLAUDE="~/.claude/${CONFIG_FILENAME}"
+CONFIG_PATH_CODEX="~/.agents/${CONFIG_FILENAME}"
+CONFIG_LOCAL_DIR_CLAUDE=".claude"
+CONFIG_LOCAL_DIR_CODEX=".agents"
+CONFIG_LOCAL_REL_CLAUDE="${CONFIG_LOCAL_DIR_CLAUDE}/${CONFIG_FILENAME}"
+CONFIG_LOCAL_REL_CODEX="${CONFIG_LOCAL_DIR_CODEX}/${CONFIG_FILENAME}"
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
@@ -137,10 +142,19 @@ build_skill() {
 
   # 토큰 치환
   local config_path="$CONFIG_PATH_CLAUDE"
+  local config_local_dir="$CONFIG_LOCAL_DIR_CLAUDE"
+  local config_local_rel="$CONFIG_LOCAL_REL_CLAUDE"
   if [[ "$target" == "codex" ]]; then
     config_path="$CONFIG_PATH_CODEX"
+    config_local_dir="$CONFIG_LOCAL_DIR_CODEX"
+    config_local_rel="$CONFIG_LOCAL_REL_CODEX"
   fi
-  body=$(echo "$body" | sed "s|{{CONFIG_PATH}}|$config_path|g")
+  body=$(echo "$body" | sed \
+    -e "s|{{CONFIG_PATH_GLOBAL}}|$config_path|g" \
+    -e "s|{{CONFIG_LOCAL_REL}}|$config_local_rel|g" \
+    -e "s|{{CONFIG_LOCAL_DIR}}|$config_local_dir|g" \
+    -e "s|{{CONFIG_FILENAME}}|$CONFIG_FILENAME|g" \
+    -e "s|{{CONFIG_PATH}}|$config_path|g")
 
   # 배포
   local deploy_path
