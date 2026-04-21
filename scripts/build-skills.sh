@@ -81,7 +81,11 @@ get_deploy_path() {
       echo "${PROJECT_DIR}/.claude/commands/${skill_name}.md"
     fi
   else
-    echo "$HOME/.agents/skills/${skill_name}/SKILL.md"
+    if [[ "$SCOPE" == "global" ]]; then
+      echo "$HOME/.agents/skills/${skill_name}/SKILL.md"
+    else
+      echo "${PROJECT_DIR}/.agents/skills/${skill_name}/SKILL.md"
+    fi
   fi
 }
 
@@ -117,12 +121,6 @@ build_body() {
 build_skill() {
   local skill_name="$1" rel_dir="$2" shared_body="$3" target="$4"
   local src_dir="$ROOT_DIR/$rel_dir"
-
-  # scope=project + codex -> skip
-  if [[ "$SCOPE" == "project" && "$target" == "codex" ]]; then
-    echo "[WARN] Codex does not support project scope -- skipping codex for $skill_name"
-    return
-  fi
 
   # 프론트매터 읽기
   local yml_file="$src_dir/${skill_name}.${target}.yml"

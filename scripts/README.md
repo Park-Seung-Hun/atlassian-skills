@@ -30,7 +30,7 @@ bash scripts/build-skills.sh --target codex
 bash scripts/build-skills.sh --skill jira-batch-create
 bash scripts/build-skills.sh --skill jira-create,jira-create-setup
 
-# 프로젝트 scope (테스트용, Claude만 지원)
+# 프로젝트 scope (테스트용)
 bash scripts/build-skills.sh --scope project --project-dir <path>
 ```
 
@@ -48,7 +48,9 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 | target | scope=global | scope=project |
 |--------|--------------|---------------|
 | claude | `~/.claude/commands/<name>.md` | `<project>/.claude/commands/<name>.md` |
-| codex  | `~/.agents/skills/<name>/SKILL.md` | (skip — Codex는 project scope 미지원) |
+| codex  | `~/.agents/skills/<name>/SKILL.md` | `<project>/.agents/skills/<name>/SKILL.md` |
+
+Codex는 세션 실행 시 현재 작업 디렉토리에서 저장소 루트까지 올라가며 `.agents/skills`를 스캔하고, 그 뒤 `$HOME/.agents/skills`와 `/etc/codex/skills`, 내장 스킬을 추가로 읽는다([공식 문서](https://developers.openai.com/codex/skills)). 따라서 project scope로 배포한 스킬은 해당 프로젝트 안에서 Codex를 실행할 때만 노출된다.
 
 ### Shared Body (hub)
 
