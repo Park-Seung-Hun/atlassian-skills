@@ -404,7 +404,7 @@ jira_batch_create_issues({
 
 ### 5-4. Phase C — Sub-task 개별 생성
 
-Sub-task는 batch 경로 대신 각 항목마다 아래 2단계 호출 체인을 **순차 실행**한다.
+Sub-task는 batch 경로 대신 각 항목마다 아래 **3단계 호출 체인**을 **순차 실행**한다. Phase B와 동일한 3단계 구조를 쓰되 호출 1에서 parent를 함께 설정하는 점만 다르다.
 
 > **Sub-task 타입명**: `issue_type`에는 Step 2-0에서 확보한 `ISSUE_TYPE_MAP["Sub-task"]`를 사용한다. 프로젝트에 Sub-task 타입이 없으면 Step 2-0이 이미 중단시키므로 이 시점에는 반드시 유효한 값이 있다.
 
@@ -420,28 +420,34 @@ Sub-task는 batch 경로 대신 각 항목마다 아래 2단계 호출 체인을
   ```
 - priority·커스텀 필드·timetracking은 호출 1에 포함하지 않는다.
 
-**호출 2 — `jira_update_issue` (커스텀 필드 + priority + timetracking + description 동시)**:
+**호출 2 — `jira_update_issue` (커스텀 필드 + priority + timetracking)**:
 ```json
 {
   "{FIELD_AC}": "1. 완료 조건 1\n2. 완료 조건 2",
   "{FIELD_EV}": "증거 텍스트",
   "priority": {"name": "Medium"},
-  "timetracking": {"originalEstimate": "4h"},
-  "description": "## 목적\n...\n\n## 범위\n..."
+  "timetracking": {"originalEstimate": "4h"}
 }
 ```
 - `{FIELD_AC}`·`{FIELD_EV}` `(none)` 시 키 생략.
 - `timetracking.originalEstimate`는 추정치가 있는 경우만.
 - **Sub-task에는 `{FIELD_SP}`를 부여하지 않는다.**
 - `parent`는 호출 1에서 이미 설정됨 → 호출 2에 포함하지 않는다.
+- **description은 호출 2에 포함하지 않는다** (호출 3에서 단독 설정).
 
-> **Sub-task가 2단계인 이유**
-> Sub-task는 create 시점에 parent가 설정되어 자동화 룰이 그때 한 번만 발동한다. 호출 2는 parent를 건드리지 않으므로 description을 함께 넣어도 덮이지 않는다. Phase B와 달리 3단계로 분리할 필요가 없다.
-> 만약 실환경에서 Phase C의 description이 덮이는 현상이 관측되면, description을 호출 2에서 제외하고 별도 호출 3을 추가해 3단계로 롤백한다.
+**호출 3 — `jira_update_issue` (description 단독)**:
+```json
+{
+  "description": "## 목적\n...\n\n## 범위\n..."
+}
+```
+
+> **Phase C가 3단계인 이유**
+> Jira Cloud는 `description`(ADF 문서 구조)과 커스텀 필드(plain text)를 한 payload에 혼합하면 ADF 검증을 실패시킨다. Phase B와 동일한 3단계로 분리하면 안전하다. Phase B와의 유일한 차이는 호출 1에서 parent를 함께 설정한다는 점(Sub-task는 Jira 제약상 parent가 create 시점에 필수).
 
 **병렬성**: 같은 부모 PBI 아래 Sub-task를 병렬 호출하지 않는다. 자동화 룰 재진입 타이밍 리스크를 피하기 위해 전체 순차 실행.
 
-**부분 실패 처리**: 특정 Sub-task의 호출 1/2 중 어느 단계라도 실패하면 해당 Sub-task만 실패·부분 완료로 집계하고, 나머지 Sub-task 생성은 중단 없이 계속한다. 실패 항목은 Step 7 리포트에 `⚠️ 부분 완료` 또는 `❌ 생성 실패`로 반영.
+**부분 실패 처리**: 특정 Sub-task의 호출 1/2/3 중 어느 단계라도 실패하면 해당 Sub-task만 실패·부분 완료로 집계하고, 나머지 Sub-task 생성은 중단 없이 계속한다. 실패 항목은 Step 7 리포트에 `⚠️ 부분 완료` 또는 `❌ 생성 실패`로 반영.
 
 ### 5-5. 스프린트 일괄 배정
 
@@ -514,7 +520,7 @@ jira_add_issues_to_sprint(
 AskUserQuestion: "실패 건을 재시도하시겠습니까?" (예/아니오)
 - **예**: 실패 건만 추출하여 Step 5의 해당 Phase부터 재실행.
   - Phase A/B 생성 실패: `jira_create_issue` 단건으로 fallback.
-  - Phase C 생성 실패: 이미 단건 경로이므로 해당 Sub-task 2단계 체인 재실행.
+  - Phase C 생성 실패: 이미 단건 경로이므로 해당 Sub-task 3단계 체인 재실행.
   - 후처리(호출 2/3) 실패: 해당 `jira_update_issue`만 재실행.
 - **아니오**: 현재 상태로 종료. 실패 건은 수동 보정을 안내.
 
@@ -528,7 +534,7 @@ Step 5-0의 마커 strip 경고가 있었다면 리포트 맨 하단에 "⚠️ 
 - 사용자 개입은 Step 4 (C) 확인 질문 **1회가 기본**. 수정이나 "특정 이슈 보기"를 선택한 경우에만 추가 질문이 발생한다.
 - 🤖·👤 마커는 **터미널 렌더링 전용**이다. Step 5-0에서 반드시 strip 검증.
 - 생성된 이슈는 절대 삭제하지 않는다. 부분 실패 시 리포트 + 재시도로 대응.
-- Phase A(Epic) / Phase B(PBI)는 3단계 호출 체인(빈 티켓 → 커스텀 필드+parent → description)의 순서를 반드시 준수한다. Phase C(Sub-task)는 2단계 체인(create with parent → 커스텀 필드+description).
+- Phase A/B/C 모두 3단계 호출 체인을 유지한다. Phase A·B는 "빈 티켓 → 커스텀 필드+parent → description", Phase C는 "create with parent → 커스텀 필드 → description". description을 항상 마지막 단독 호출로 분리해 Jira Cloud ADF 검증과 자동화 룰 덮어쓰기를 동시에 회피한다.
 - `description`에는 목적과 범위만 작성한다. AC·증거는 커스텀 필드로 분리. description에 AC·증거를 넣으면 Jira가 잘못 파싱한다.
 - AC는 예/아니오로 판정 가능한 형태로 작성한다.
 - Sub-task에는 스토리 포인트를 부여하지 않는다.
