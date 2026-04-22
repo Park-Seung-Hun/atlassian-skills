@@ -24,6 +24,8 @@
 - **FIELD_SP**: `스토리 포인트 필드` 항목 (`(none)`이면 스토리 포인트 수집 Step 스킵)
 - **FIELD_AC**: `AC 필드` 항목 (`(none)`이면 AC 수집 Step 스킵)
 - **FIELD_EV**: `증거 필드` 항목 (`(none)`이면 증거 수집 Step 스킵)
+- **DEFAULT_PRIORITY**: `기본 우선순위` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
+- **DEFAULT_EVIDENCE**: `기본 증거 형태` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
 - **SLACK_ID**: `Slack 사용자 ID` 항목 (`(none)`이면 Slack 알림 Step 스킵)
 
 ### 0-1. config 미설정 시 인라인 수집

@@ -129,21 +129,31 @@ flowchart TD
     A(["/jira-batch-create"]) --> B{config.md?}
     B -- 없음 --> C[인라인 설정 수집]
     B -- 유효 --> D[설정 로드]
-    C & D --> E[SDD 입력 수집]
+    C & D --> E[Step 1: 문서 입력·파싱]
     E --> F{templates.yml 매칭?}
     F -- 실패 --> G([템플릿 미등록 오류])
-    F -- 성공 --> H[SDD 파싱]
-    H --> I[파싱 결과 확인]
-    I --> J[배치 기본값 수집\n우선순위·스프린트·증거]
-    J --> K[개별 이슈 보강\n요약·목적·범위·AC·증거·SP]
-    K --> L[콘텐츠 검증]
-    L --> M[미리보기 확인]
-    M --> N[Phase A: Epic 생성]
-    N --> O[Phase B: PBI 일괄 생성]
-    O --> P[Phase C: Sub-task 개별 생성]
+    F -- 성공 --> H["Step 2: 자동 보강 (무대화)
+    - 2-0 이슈 타입 맵 확보
+    - 2-1 assignee 식별자
+    - 우선순위·스프린트·증거·AC·SP
+    - origin 메타: doc/auto/user"]
+    H --> I[Step 3: 길이 자동 축약]
+    I --> J{"Step 4: 미리보기
+    (유일한 게이트)"}
+    J -- 취소 --> Z([종료])
+    J -- 특정 이슈 보기 --> J
+    J -- 수정 --> K["필드 재조정
+    origin: auto → user"]
+    K --> J
+    J -- 이대로 생성 --> L["Step 5-0: payload 정화
+    🤖·👤 마커 strip"]
+    L --> M[Phase A: Epic 3단계 체인]
+    M --> N[Phase B: PBI batch + 3단계 후처리]
+    N --> O[Phase C: Sub-task 3단계 순차]
+    O --> P[스프린트 일괄 배정]
     P --> Q{Slack 활성?}
-    Q -- 예 --> R[Slack DM]
-    Q -- 아니오 --> S([결과 리포트])
+    Q -- 예 --> R[Step 6: Slack DM]
+    Q -- 아니오 --> S([Step 7: 결과 리포트])
     R --> S
 ```
 
@@ -185,8 +195,8 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 
 | 환경 | 배포 경로 |
 |------|---------|
-| Claude Code | `~/.claude/commands/jira-create.md`, `jira-create-setup.md` |
-| Codex | `~/.agents/skills/jira-create/`, `~/.agents/skills/jira-create-setup/` |
+| Claude Code | `~/.claude/commands/{jira-create,jira-create-setup,jira-batch-create,jira-batch-create-setup}.md` |
+| Codex | `~/.agents/skills/{jira-create,jira-create-setup,jira-batch-create,jira-batch-create-setup}/SKILL.md` |
 
 스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create-setup`으로 각각 설정한다.
 
@@ -289,17 +299,28 @@ SDD(설계 문서) 파싱 규칙을 템플릿으로 정의하고, `jira-sdd-temp
 예) /jira-batch-create ./specs/tasks.md
 ```
 
-SDD를 파싱하여 Epic/PBI/Sub-task를 한 플로우에서 일괄 생성한다:
+설계 문서를 단일 소스로 신뢰하고, 문서에 없는 필드는 자동 보강해 사용자 개입을 최종 미리보기 1회로 압축한다.
 
-1. SDD 입력 → 등록된 템플릿과 자동 매칭
-2. 파싱 결과 확인 (계층 테이블)
-3. 배치 기본값 수집 (우선순위, 스프린트, 증거)
-4. 개별 이슈 보강 (목적/범위/AC/증거/SP — Claude가 SDD 컨텍스트로 초안 생성)
-5. 미리보기 확인
-6. 3단계 계층 순서로 생성 (Epic → PBI → Sub-task)
-   - Epic·PBI는 `jira_batch_create_issues` + 후처리 체인으로 일괄 생성
-   - Sub-task는 Jira 제약(생성 시 parent 필수)과 batch API 제한(additional_fields 미지원)이 겹쳐 개별 `jira_create_issue`로 생성
-7. 결과 리포트
+| Step | 내용 | 사용자 개입 |
+|------|------|-----------|
+| 1 | 문서 입력 + 템플릿 매칭·파싱 | 파일 경로 1회 (없을 때만) |
+| 2 | 필드 자동 보강 (이슈 타입 맵·assignee·우선순위·스프린트·AC·SP 등) | 없음 |
+| 3 | 콘텐츠 길이 자동 축약 | 없음 |
+| 4 | 미리보기 + 확인 (생성/수정/특정 이슈 보기/취소) | **1회 기본** |
+| 5 | Jira 이슈 생성 (payload 정화 → Phase A/B/C) | 없음 |
+| 6 | Slack DM 알림 | 없음 |
+| 7 | 결과 리포트 | 실패 시만 재시도 질문 |
+
+**자동 보강 원칙**:
+- `ISSUE_TYPE_MAP`: 프로젝트 이슈 샘플링으로 Epic/Story/Task/Sub-task 로컬라이즈 이름 1회 캐싱(한국어/영문 인스턴스 자동 대응)
+- **assignee**: `jira_search(assignee = currentUser())` 응답에서 accountId/email/displayName 순으로 확보
+- 필드 출처(`origin`) 메타: `doc` / `auto` / `user` — 미리보기에서 🤖/👤 마커로 표시, **Jira payload에는 포함하지 않음** (Step 5-0에서 strip 검증)
+
+**Phase 호출 체인** (세 Phase 모두 3단계 구조 통일):
+- Phase A — Epic: `jira_create_issue` 빈 티켓 → 커스텀 필드·priority → description 단독
+- Phase B — PBI: `jira_batch_create_issues` + validate_only 사전 검증 → 커스텀 필드·parent·priority → description 단독
+- Phase C — Sub-task: `jira_create_issue` with parent → 커스텀 필드·priority → description 단독
+- description이 항상 마지막 단독 호출인 이유: Jira Cloud ADF 검증이 description + 커스텀 필드 혼합 payload를 거절하며, parent 설정 시 자동화 룰이 description을 덮어쓸 수 있기 때문
 
 ---
 
