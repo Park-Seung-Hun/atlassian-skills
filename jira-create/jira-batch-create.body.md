@@ -49,13 +49,18 @@
 
 문서에서 추출 불가한 필드를 config 기본값·모델 추정으로 **질문 없이** 채운다.
 
-### 2-1. assignee accountId 획득
+### 2-1. assignee 식별자 획득
 
-1. `jira_get_user_profile(user_identifier="currentUser()")` 시도. 성공하면 응답의 `accountId`를 사용.
-2. 실패하면 fallback: `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")` → 응답의 `issues[0].fields.assignee.accountId`를 직접 추출.
-3. 두 경로 모두 실패: "현재 사용자 accountId를 조회할 수 없습니다. Jira 권한을 확인하세요." 출력 후 중단.
+1. `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")` 실행.
+2. 응답의 `issues[0].fields.assignee` 객체에서 아래 우선순위로 식별자 1개를 확보하여 `{ASSIGNEE}` 변수에 저장:
+   - `accountId` (있으면 우선)
+   - `emailAddress`
+   - `displayName`
+3. `issues`가 비어있거나 세 필드가 모두 부재하면 "현재 사용자 assignee 식별자를 조회할 수 없습니다. 본인이 담당자인 이슈가 1건 이상 있어야 합니다." 출력 후 중단.
 
-획득한 accountId는 Phase A/B/C 전체에서 재사용한다 (1회만 조회).
+`{ASSIGNEE}`는 Phase A/B/C 전체에서 재사용한다 (1회만 조회). MCP의 `jira_create_issue` / `jira_batch_create_issues`는 assignee 필드에 email, display name, account ID를 모두 수용하므로 식별자 종류는 무관하다.
+
+> `jira_get_user_profile`의 `user_identifier`가 JQL 함수형 `currentUser()`를 지원하지 않고, search fallback의 assignee 객체에도 accountId가 없을 수 있어 accountId 강제 획득 경로는 사용하지 않는다.
 
 ### 2-2. 우선순위
 
@@ -308,7 +313,7 @@ Phase A/B/C 어떤 호출이든 payload를 조립하기 전에 아래 규칙을 
 - `project_key`: Step 0의 `{PROJECT_KEY}`
 - `issue_type`: Jira 인스턴스 언어에 맞는 Epic 타입명
 - `summary`: 확정된 요약
-- `assignee`: 2-1에서 획득한 accountId
+- `assignee`: 2-1에서 확보한 `{ASSIGNEE}`
 - `description`: **설정하지 않는다** (빈 티켓)
 
 Epic 후처리 (3단계 호출 체인, 단건 스킬과 동일 패턴):
@@ -336,8 +341,8 @@ Epic 후처리 (3단계 호출 체인, 단건 스킬과 동일 패턴):
 ```
 jira_batch_create_issues({
   issues: [
-    { project_key: "PROJ", summary: "...", issue_type: "Story", assignee: "{accountId}" },
-    { project_key: "PROJ", summary: "...", issue_type: "Task",  assignee: "{accountId}" },
+    { project_key: "PROJ", summary: "...", issue_type: "Story", assignee: "{ASSIGNEE}" },
+    { project_key: "PROJ", summary: "...", issue_type: "Task",  assignee: "{ASSIGNEE}" },
     ...
   ],
   validate_only: false
@@ -379,7 +384,7 @@ Sub-task는 batch 경로 대신 각 항목마다 아래 2단계 호출 체인을
 - `project_key`: `{PROJECT_KEY}`
 - `issue_type`: Sub-task 타입명
 - `summary`: 확정된 요약
-- `assignee`: 2-1에서 획득한 accountId
+- `assignee`: 2-1에서 확보한 `{ASSIGNEE}`
 - `description`: **설정하지 않는다**
 - `additional_fields`:
   ```json
