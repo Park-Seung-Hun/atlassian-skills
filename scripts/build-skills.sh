@@ -142,6 +142,10 @@ build_skill() {
   fi
   body=$(echo "$body" | sed "s|{{CONFIG_PATH}}|$config_path|g")
 
+  local config_dir
+  config_dir=$(dirname "$config_path")
+  body=$(echo "$body" | sed "s|{{CONFIG_DIR}}|$config_dir|g")
+
   # 배포
   local deploy_path
   deploy_path=$(get_deploy_path "$skill_name" "$target")
