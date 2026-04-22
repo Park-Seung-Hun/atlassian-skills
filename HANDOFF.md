@@ -27,7 +27,7 @@ d3d81eb build(scripts): {{CONFIG_DIR}} 토큰 치환 추가
 - #7 `currentUser()` MCP 미지원 → `jira_search` 기반 식별자 확보 (`fd5d13a`)
 - #8 이슈 타입 한국어 의존 → `ISSUE_TYPE_MAP` 1회 캐싱 (`18c9d33`)
 
-상세 요약은 아래 Codex 실사용 검증 결과와 후속 브랜치 계획에 반영했다.
+상세: `post-test-findings.md`.
 
 ### Codex 실사용 검증 결과 (2026-04-22)
 
@@ -97,7 +97,7 @@ git merge --no-ff refactor/jira-batch-create-auto-first
 
 ### 3. 후속 브랜치 (main 머지 후, 우선순위순)
 
-1차 테스트와 Codex 실사용 검증에서 남은 P1/P2/P3 성격 작업은 별도 브랜치로 처리:
+`post-test-findings.md`와 Codex 실사용 검증에서 남은 P1/P2/P3 성격 작업은 별도 브랜치로 처리:
 
 | 브랜치 | 범위 | 비고 |
 |--------|------|------|
@@ -133,6 +133,7 @@ git merge --no-ff refactor/jira-batch-create-auto-first
 
 - `jira-create/jira-batch-create.body.md` — 재설계된 본문
 - `jira-create/README.md` — 재설계 반영된 스킬 설명서
+- `post-test-findings.md` — 1차 테스트 피드백 12건, P0~P3 분류
 - `batch-create-test-workflow.md` — E2E 테스트 절차 (간략화판)
 - `scripts/build-skills.sh` — `{{CONFIG_DIR}}` 치환 로직 포함
 - `test-sdd.md` / `test-sdd-blog-migration.md` / `test-sdd-file-upload.md` — Spec Kit 포맷 테스트 샘플

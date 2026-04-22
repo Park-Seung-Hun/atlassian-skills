@@ -139,4 +139,4 @@ rm -f ~/.claude/jira-sdd-templates.yml
 |------|------|
 | 시나리오 C에서 14건 정상 생성 + 마커 0건 | main `--no-ff` 머지 |
 | 일부 실패 | 실패 로그 공유 → fix 추가 |
-| 새 이슈 발견 | `HANDOFF.md`의 검증/후속 작업 섹션에 반영 |
+| 새 이슈 발견 | `post-test-findings.md`에 기록 |
