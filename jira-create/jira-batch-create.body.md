@@ -49,6 +49,34 @@
 
 문서에서 추출 불가한 필드를 config 기본값·모델 추정으로 **질문 없이** 채운다.
 
+### 2-0. 이슈 타입 맵 확보
+
+Jira 인스턴스 언어가 한국어이면 `Epic`이 아닌 `에픽`만 수용하는 식으로 이슈 타입 이름이 로컬라이즈된다. Phase A/B/C가 공통으로 쓸 **`ISSUE_TYPE_MAP`**을 배치당 1회 구축한다.
+
+**알고리즘**:
+
+1. `jira_search(jql="project = {PROJECT_KEY}", fields="issuetype", limit=50)` 실행.
+2. 응답의 `issues[].fields.issuetype.name`을 고유 집합으로 수집.
+3. 표준 키(영문) → 실제 인스턴스 이름으로 매핑:
+
+   ```
+   ISSUE_TYPE_MAP = {
+     "Epic":     <수집 집합 중 "에픽" | "Epic" 일치>,
+     "Story":    <"스토리" | "Story">,
+     "Task":     <"작업" | "Task">,
+     "Sub-task": <"하위 작업" | "Sub-task" | "Subtask">,
+     "Spike":    <"스파이크" | "Spike">  # 없으면 null
+   }
+   ```
+
+4. 필수 타입(Epic / Story / Task / Sub-task) 중 매핑 실패가 있으면:
+   > "프로젝트 {PROJECT_KEY}에서 {표준 키} 이슈 타입을 찾을 수 없습니다. 프로젝트의 이슈 타입 설정을 확인하세요."
+   출력 후 중단.
+
+5. Spike는 옵셔널 — 없으면 `null`로 두고, SDD에 Spike가 있을 때만 중단한다.
+
+**재사용**: Phase A/B/C의 `issue_type` 필드는 항상 `ISSUE_TYPE_MAP[<표준 키>]`를 참조한다. 본문에서 `"Epic"`, `"Story"`, `"Task"`, `"Subtask"` 같은 영문 리터럴을 직접 쓰지 않는다.
+
 ### 2-1. assignee 식별자 획득
 
 1. `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")` 실행.
@@ -311,7 +339,7 @@ Phase A/B/C 어떤 호출이든 payload를 조립하기 전에 아래 규칙을 
 
 `jira_create_issue`로 단건 생성한다:
 - `project_key`: Step 0의 `{PROJECT_KEY}`
-- `issue_type`: Jira 인스턴스 언어에 맞는 Epic 타입명
+- `issue_type`: `ISSUE_TYPE_MAP["Epic"]`
 - `summary`: 확정된 요약
 - `assignee`: 2-1에서 확보한 `{ASSIGNEE}`
 - `description`: **설정하지 않는다** (빈 티켓)
@@ -341,8 +369,8 @@ Epic 후처리 (3단계 호출 체인, 단건 스킬과 동일 패턴):
 ```
 jira_batch_create_issues({
   issues: [
-    { project_key: "PROJ", summary: "...", issue_type: "Story", assignee: "{ASSIGNEE}" },
-    { project_key: "PROJ", summary: "...", issue_type: "Task",  assignee: "{ASSIGNEE}" },
+    { project_key: "PROJ", summary: "...", issue_type: ISSUE_TYPE_MAP["Story"], assignee: "{ASSIGNEE}" },
+    { project_key: "PROJ", summary: "...", issue_type: ISSUE_TYPE_MAP["Task"],  assignee: "{ASSIGNEE}" },
     ...
   ],
   validate_only: false
@@ -378,11 +406,11 @@ jira_batch_create_issues({
 
 Sub-task는 batch 경로 대신 각 항목마다 아래 2단계 호출 체인을 **순차 실행**한다.
 
-> **Sub-task 타입명 해석**: `issue_type`에는 Jira 인스턴스가 실제로 인식하는 타입명을 넣어야 한다. 표준 식별자는 `Subtask`지만 한국어 인스턴스는 `하위 작업`, 일부는 `Sub-task`를 사용한다. Step 0에서 확정된 타입명이 있으면 그대로 사용하고, 없으면 Phase B에서 생성한 PBI 중 하나를 `jira_get_issue`로 1회 조회해 프로젝트의 Sub-task `issuetype.name`을 캐싱 후 재사용한다.
+> **Sub-task 타입명**: `issue_type`에는 Step 2-0에서 확보한 `ISSUE_TYPE_MAP["Sub-task"]`를 사용한다. 프로젝트에 Sub-task 타입이 없으면 Step 2-0이 이미 중단시키므로 이 시점에는 반드시 유효한 값이 있다.
 
 **호출 1 — `jira_create_issue` (parent 포함 생성)**:
 - `project_key`: `{PROJECT_KEY}`
-- `issue_type`: Sub-task 타입명
+- `issue_type`: `ISSUE_TYPE_MAP["Sub-task"]`
 - `summary`: 확정된 요약
 - `assignee`: 2-1에서 확보한 `{ASSIGNEE}`
 - `description`: **설정하지 않는다**
