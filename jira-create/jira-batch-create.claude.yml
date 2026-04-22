@@ -1,5 +1,5 @@
 ---
-allowed-tools: mcp__mcp-atlassian__jira_batch_create_issues, mcp__mcp-atlassian__jira_create_issue, mcp__mcp-atlassian__jira_update_issue, mcp__mcp-atlassian__jira_get_user_profile, mcp__mcp-atlassian__jira_get_sprints_from_board, mcp__mcp-atlassian__jira_add_issues_to_sprint, mcp__mcp-atlassian__jira_get_agile_boards, mcp__mcp-atlassian__jira_search, mcp__mcp-atlassian__jira_search_fields, mcp__mcp-atlassian__jira_link_to_epic, mcp__slack__slack_get_users, mcp__slack__slack_post_message, AskUserQuestion, Read
+allowed-tools: mcp__mcp-atlassian__jira_batch_create_issues, mcp__mcp-atlassian__jira_create_issue, mcp__mcp-atlassian__jira_update_issue, mcp__mcp-atlassian__jira_get_user_profile, mcp__mcp-atlassian__jira_get_sprints_from_board, mcp__mcp-atlassian__jira_add_issues_to_sprint, mcp__mcp-atlassian__jira_get_agile_boards, mcp__mcp-atlassian__jira_search, mcp__mcp-atlassian__jira_search_fields, mcp__slack__slack_post_message, AskUserQuestion, Read
 description: SDD(설계 문서)를 파싱하여 Epic/PBI/Sub-task를 일괄 생성한다. spec kit task 포맷을 지원하며, 생성 후 선택적으로 Slack DM 알림을 전송한다.
 disable-model-invocation: false
 ---

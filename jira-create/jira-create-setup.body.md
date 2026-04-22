@@ -61,16 +61,39 @@ jira-create 스킬이 사용하는 `{{CONFIG_PATH}}` 파일을 생성한다.
   - `직접 입력`: AskUserQuestion으로 필드 키 직접 입력
 
 
-## Step 5 — Slack 설정
+## Step 5 — Batch 기본값 수집 (선택)
 
-### 5-1. 사용 여부 확인
+`jira-batch-create` 스킬이 자동 보강 시 사용할 기본값을 수집한다. 미설정 항목은 배치 스킬이 내부 fallback(Medium / PR 링크 / 배포 URL)을 사용한다.
+
+### 5-1. 기본 우선순위
+
+AskUserQuestion:
+> "Jira 이슈 생성 시 기본 우선순위를 선택하세요."
+
+- Highest / High / **Medium (추천)** / Low / 설정 안 함
+
+"설정 안 함" 선택 시 DEFAULT_PRIORITY = `(none)`.
+
+### 5-2. 기본 증거 형태 (PBI)
+
+AskUserQuestion:
+> "PBI/Sub-task의 기본 증거 형태를 선택하세요."
+
+- **PR 링크 (추천)** / Confluence 문서 링크 / 스크린샷·로그 / 설정 안 함
+
+"설정 안 함" 선택 시 DEFAULT_EVIDENCE = `(none)`.
+
+
+## Step 6 — Slack 설정
+
+### 6-1. 사용 여부 확인
 
 > "Slack 알림을 사용하시겠습니까? (예/아니오)"
 
-- **아니오**: SLACK_ID = `(none)` 으로 설정하고 5-2를 스킵한다.
-- **예**: 이하 5-2 진행.
+- **아니오**: SLACK_ID = `(none)` 으로 설정하고 6-2를 스킵한다.
+- **예**: 이하 6-2 진행.
 
-### 5-2. Slack 사용자 ID 수집
+### 6-2. Slack 사용자 ID 수집
 
 > "Slack 표시 이름(display name)을 입력하세요."
 
@@ -82,7 +105,7 @@ jira-create 스킬이 사용하는 `{{CONFIG_PATH}}` 파일을 생성한다.
 직접 입력 받아 SLACK_ID로 저장한다.
 
 
-## Step 6 — config.md 저장
+## Step 7 — config.md 저장
 
 `{{CONFIG_PATH}}` 파일을 아래 형식으로 작성한다.
 (파일이 이미 존재하면 덮어쓴다)
@@ -97,6 +120,8 @@ jira-create 스킬이 사용하는 `{{CONFIG_PATH}}` 파일을 생성한다.
 스토리 포인트 필드: {FIELD_SP}
 AC 필드: {FIELD_AC}
 증거 필드: {FIELD_EV}
+기본 우선순위: {DEFAULT_PRIORITY}
+기본 증거 형태: {DEFAULT_EVIDENCE}
 
 ## 알림
 Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
@@ -111,7 +136,7 @@ Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
 `(none)`으로 설정된 슬롯은 해당 값 그대로 기록한다. Notion 섹션은 이 setup이 채우지 않으며, 추후 `/sprint-setup` 실행 시 채워진다(jira-create 스킬은 Notion 값을 사용하지 않는다).
 
 
-## Step 7 — 완료 안내
+## Step 8 — 완료 안내
 
 ```
 ✅ 설정 완료!
@@ -124,6 +149,8 @@ Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
 - 스토리 포인트 필드: {FIELD_SP}
 - AC 필드: {FIELD_AC}
 - 증거 필드: {FIELD_EV}
+- 기본 우선순위: {DEFAULT_PRIORITY}
+- 기본 증거 형태: {DEFAULT_EVIDENCE}
 - Slack 알림: {SLACK_ID가 (none)이면 "비활성", 아니면 SLACK_ID 값}
 
 이제 /jira-create 커맨드를 사용할 수 있습니다.
