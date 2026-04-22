@@ -1,3 +1,7 @@
 .claude/settings.local.json
 .claude/commands/
+.claude/sprint-workflow-config.md
+.claude/jira-sdd-templates.yml
+.agents/
+.idea/
 .DS_Store
