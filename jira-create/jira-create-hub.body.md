@@ -8,8 +8,9 @@
 
 ### 커스텀 필드 설정
 
-커스텀 필드 ID는 Step 0에서 `{{CONFIG_PATH}}`를 로드하거나 `jira_search_fields`로 자동 조회하여 결정한다.
-이하 지시에서 `{FIELD_SP}` / `{FIELD_AC}` / `{FIELD_EV}`는 Step 0에서 확정된 필드 키를 의미한다.
+커스텀 필드 ID는 0-0(config 로드) 또는 0-1(config 없을 때의 인라인 수집)에서 확정된다.
+이하 지시에서 `{FIELD_SP}` / `{FIELD_AC}` / `{FIELD_EV}`는 확정된 필드 키를 의미한다.
+config 로드 경로인 경우 0-0a에서 customfield 키의 존재 여부 1회 검증을 거친다.
 `(none)`으로 설정된 슬롯은 해당 수집 Step 전체를 스킵한다.
 
 > **중요**: `description` 필드에 AC/증거를 포함하면 Jira가 자동으로 파싱하여 섹션이 잘리거나 커스텀 필드에 잘못 매핑된다.
@@ -28,9 +29,93 @@
 - **DEFAULT_EVIDENCE**: `기본 증거 형태` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
 - **SLACK_ID**: `Slack 사용자 ID` 항목 (`(none)`이면 Slack 알림 Step 스킵)
 
-### 0-1. config 미설정 시 인라인 수집
+### 0-0b. 현재 설정 확인
 
-config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우:
+**실행 조건**: 0-0에서 config 로드가 성공하고, 0-2 $ARGUMENTS 오버라이드가 발동되지 않은 경우에만 실행. config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하면 0-0b를 건너뛰고 0-1로 진입. 0-2 경로도 0-0b/0-0c/0-0a 전체를 건너뜀.
+
+로드된 config 값을 아래 형식으로 요약 출력한다.
+
+```
+현재 설정 ({{CONFIG_PATH}}):
+- 프로젝트 키       : {PROJECT_KEY}
+- 보드 ID           : {BOARD_ID}
+- 스토리 포인트 필드: {FIELD_SP}
+- AC 필드           : {FIELD_AC}
+- 증거 필드         : {FIELD_EV}
+- 기본 우선순위     : {DEFAULT_PRIORITY}
+- 기본 증거 형태    : {DEFAULT_EVIDENCE}
+- Slack 사용자 ID   : {SLACK_ID}
+```
+
+AskUserQuestion (단일 선택):
+> "위 설정으로 진행할까요, 항목을 수정할까요?"
+- **그대로 진행** → 0-0a 진입
+- **항목 수정** → 0-0c 진입
+
+### 0-0c. 항목별 수정
+
+AskUserQuestion (**복수 선택**):
+> "수정할 항목을 선택하세요."
+
+선택지:
+- 프로젝트 키 / 보드 ID (함께 수정) → **0-1-PROJECT** 재실행
+- 스토리 포인트 필드 (FIELD_SP) → **0-1-SP** 재실행
+- AC 필드 (FIELD_AC) → **0-1-AC** 재실행
+- 증거 필드 (FIELD_EV) → **0-1-EV** 재실행
+- 기본 우선순위 → 직접 입력 (예: Highest, High, Medium, Low, Lowest 중 하나)
+- 기본 증거 형태 → 직접 입력 (예: 링크, 스크린샷, 로그, 테스트 결과 등 자유 텍스트)
+- Slack 사용자 ID → 직접 입력 (Slack member ID, 예: U01ABCDEFGH). "(none)" 입력 시 알림 비활성화.
+
+선택된 항목을 순차적으로 수집한 뒤 `{{CONFIG_PATH}}` 갱신.
+
+**config 갱신 로직**:
+1. `{{CONFIG_PATH}}`를 Read로 로드 (전체 내용).
+2. 저장 포맷은 `라벨: 값` 라인 단위. 각 항목의 라벨은 아래와 같이 고정(이 라벨이 바뀌면 `jira-create-setup`과 호환성이 깨진다):
+   - `프로젝트 키:`, `보드 ID:`, `스토리 포인트 필드:`, `AC 필드:`, `증거 필드:`, `기본 우선순위:`, `기본 증거 형태:`, `Slack 사용자 ID:`
+3. 수정된 슬롯에 해당하는 **라인만** 새 값으로 교체. 다른 라인과 파일 내 다른 섹션은 건드리지 않는다.
+4. Write로 전체 파일을 덮어쓴다.
+5. "`{{CONFIG_PATH}}`를 갱신했습니다." 안내 출력.
+
+완료 후 **0-0b로 복귀**하여 갱신된 값을 재확인한다 (사용자가 다시 "수정"을 선택하면 추가 수정 가능).
+
+### 0-0a. 자동 customfield 키 검증
+
+**실행 조건**: 0-0b에서 "그대로 진행"을 선택한 경우에만 실행. 0-2 경로(1회성 오버라이드)에서는 실행하지 않는다.
+
+로드된 customfield 키가 현재 Jira 인스턴스에서 실제 조회 가능한지 1회 검증한다.
+
+**probe**:
+- `jira_search_fields`를 1회 호출하여 customfield 전체 목록을 얻는다.
+- 응답의 각 항목에서 `id`(예: `customfield_10016`) 문자열을 수집한다. `id` 값이 `customfield_`로 시작하는 항목 목록을 추출하여 config 값과 직접 문자열 비교한다.
+- config의 FIELD_SP / FIELD_AC / FIELD_EV 값을 이 목록과 비교한다. `(none)`으로 설정된 슬롯은 검증 대상에서 제외한다.
+
+> 참고: 이 검증은 "필드 존재"만 확인한다. "현재 PROJECT_KEY에서 실제로 쓸 수 있는지(프로젝트 스코프 바인딩)"까지는 확인하지 않는다.
+
+**실패 감지 시 분기 (슬롯별 순차 처리)**:
+
+어떤 슬롯이 목록에서 확인되지 않으면 해당 슬롯에 대해 아래를 수행한다.
+
+```
+FIELD_AC(`customfield_99999`)가 jira_search_fields 결과에서 확인되지 않습니다.
+```
+
+AskUserQuestion (단일 선택):
+> "어떻게 처리할까요?"
+- **재지정** → 해당 슬롯의 0-1 서브섹션(`0-1-AC` 등) 재진입 → 새 값 확정 → 0-0c의 config 갱신 로직으로 `{{CONFIG_PATH}}` 저장 → 다음 실패 슬롯으로 이동
+- **비활성화** → 세션 내에서만 해당 슬롯을 `(none)`으로 처리. `{{CONFIG_PATH}}`는 **변경하지 않는다**(의도적). 다음 실행 시 동일 오류가 재발할 수 있음을 안내.
+- **중단** → 스킬 즉시 종료.
+
+모든 실패 슬롯 처리가 끝나거나 검증 통과 시 본문의 `## Step 1`로 진입한다.
+
+### 0-1. 인라인 수집 서브루틴
+
+아래 네 개 서브섹션은 독립적으로 호출 가능하다. config 미설정 fallback에서는 0-1-PROJECT → 0-1-SP → 0-1-AC → 0-1-EV 순차 호출. 0-0c/0-0a의 재지정 분기는 해당 슬롯 서브섹션만 호출한다.
+
+> **인라인 모드 SLACK_ID 처리**: config 미설정 인라인 fallback에서는 `SLACK_ID = (none)`으로 고정한다. Slack 알림은 `/jira-create-setup`을 통해서만 활성화된다.
+
+#### 0-1-PROJECT — PROJECT_KEY + BOARD_ID 수집
+
+config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우, 또는 0-0c에서 "프로젝트 키 / 보드 ID" 항목을 선택한 경우 진입한다.
 
 1. AskUserQuestion: "Jira 프로젝트 키를 입력하세요. (예: TCI, MYPROJ)"
 2. `jira_get_agile_boards`를 호출하여 해당 프로젝트의 보드 목록을 조회한다:
@@ -38,9 +123,16 @@ config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우:
    - **결과 2~4개**: AskUserQuestion으로 보드 선택. 선택된 보드의 ID를 BOARD_ID로 저장.
    - **결과 5개 이상**: AskUserQuestion으로 "보드 이름 일부를 입력하세요."를 수집하고, 포함하는 보드만 필터 후 위 분기를 재적용.
    - **결과 0개**: "해당 프로젝트의 보드를 찾을 수 없습니다. 프로젝트 키를 확인하세요." 출력 후 중단.
-3. `jira_search_fields`를 호출하여 `customfield_`로 시작하는 필드 목록을 조회하고, 3개 슬롯(FIELD_SP / FIELD_AC / FIELD_EV)을 순차 매핑한다.
 
-**슬롯별 키워드 매칭 기준 (대소문자 무시)**
+#### 0-1-SP — FIELD_SP 슬롯 매칭
+
+이 서브루틴을 단독 호출하는 경우 `jira_search_fields` 결과를 1회 조회하여 캐시한다. 같은 fallback 내에서 여러 슬롯을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+
+**0-0c 재진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료.
+
+`jira_search_fields` 결과에서 `customfield_`로 시작하는 필드를 대상으로 아래 키워드 매칭을 적용한다(대소문자 무시).
+
+**슬롯별 키워드 매칭 기준**
 
 | 슬롯 | 키워드 |
 |------|--------|
@@ -48,23 +140,39 @@ config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우:
 | FIELD_AC (AC/완료조건) | acceptance, acceptance criteria, AC, 완료 조건, 완료조건, 인수 기준, 인수기준 |
 | FIELD_EV (증거) | evidence, proof, 증거, 근거 |
 
-각 슬롯마다:
+FIELD_SP 슬롯 매핑:
 - **매칭 1개**: "스토리 포인트 필드로 `{필드명} ({필드 키})`을 사용하시겠습니까?" 확인 후 사용.
 - **매칭 0개 / 2개 이상**: AskUserQuestion 선택 UI 제시 (상위 3개 후보 + `사용 안 함` + `직접 입력`).
   - `사용 안 함` 선택: 해당 슬롯을 `(none)`으로 설정 → 관련 수집 Step 스킵.
   - `직접 입력` 선택: AskUserQuestion으로 필드 키 직접 입력.
 
-config 로드 모드에서는 보드·필드 재조회 없이 로드된 값을 그대로 사용한다.
+#### 0-1-AC — FIELD_AC 슬롯 매칭
 
-> **인라인 모드 SLACK_ID 처리**: config 미설정 인라인 fallback에서는 `SLACK_ID = (none)`으로 고정한다. Slack 알림은 `/jira-create-setup`을 통해서만 활성화된다.
+이 서브루틴을 단독 호출하는 경우 `jira_search_fields` 결과를 1회 조회하여 캐시한다. 같은 fallback 내에서 여러 슬롯을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+
+**0-0c 재진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료.
+
+0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_AC 행을 동일 규칙으로 적용하여 슬롯을 매핑한다. 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리도 0-1-SP와 동일하다.
+
+#### 0-1-EV — FIELD_EV 슬롯 매칭
+
+이 서브루틴을 단독 호출하는 경우 `jira_search_fields` 결과를 1회 조회하여 캐시한다. 같은 fallback 내에서 여러 슬롯을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+
+**0-0c 재진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료.
+
+0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_EV 행을 동일 규칙으로 적용하여 슬롯을 매핑한다. 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리도 0-1-SP와 동일하다.
+
+config 로드 모드에서는 0-0a의 customfield 키 존재 검증을 1회 거친 뒤 로드된 값을 사용한다. 보드 재조회는 수행하지 않는다.
 
 ### 0-2. $ARGUMENTS 우선 적용
+
+**0-2 경로는 1회성 오버라이드이므로 0-0b/0-0c/0-0a를 모두 건너뛰고 바로 보드·필드 재탐색으로 진입한다.**
 
 `$ARGUMENTS`에 알파벳 2~10자로 이루어진 단어가 포함되어 있고 작업 설명이 아닌 프로젝트 키로 판단되는 경우, config의 PROJECT_KEY보다 우선 적용한다.
 
 **오버라이드 시 보드/필드 재탐색 (필수)**: PROJECT_KEY를 오버라이드하는 경우, 기존 config의 BOARD_ID·FIELD_SP·FIELD_AC·FIELD_EV는 더 이상 유효하지 않다. 다음과 같이 처리한다:
 
 1. "프로젝트 키 `{X}`로 1회성 생성합니다. 보드/필드를 재탐색합니다." 안내를 출력.
-2. BOARD_ID·FIELD_SP·FIELD_AC·FIELD_EV를 무효화하고, Step 0-1의 인라인 수집 경로(`jira_get_agile_boards` + `jira_search_fields`)를 강제 실행한다.
+2. BOARD_ID·FIELD_SP·FIELD_AC·FIELD_EV를 무효화하고, 0-1-PROJECT → 0-1-SP → 0-1-AC → 0-1-EV 서브루틴을 순차 강제 실행한다.
 3. SLACK_ID는 개인 알림이므로 그대로 유지한다.
 4. 재탐색된 값은 `{{CONFIG_PATH}}`에 저장하지 않는다 (1회성).
