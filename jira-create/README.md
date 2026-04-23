@@ -27,7 +27,7 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 |------|--------|------|
 | `jira-create-setup.md` | `/jira-create-setup` | 프로젝트 설정 (초기 및 재설정) |
 | `jira-create.md` | `/jira-create` | 이슈 생성 |
-| `jira-batch-create-setup.md` | `/jira-batch-create-setup` | SDD 파싱 템플릿 등록 |
+| `jira-batch-templates.md` | `/jira-batch-templates` | SDD 파싱 템플릿 관리 (편집 진입점) |
 | `jira-batch-create.md` | `/jira-batch-create` | SDD 기반 이슈 일괄 생성 |
 
 ---
@@ -102,11 +102,11 @@ flowchart TD
     X --> V
 ```
 
-### /jira-batch-create-setup 플로우
+### /jira-batch-templates 플로우
 
 ```mermaid
 flowchart TD
-    A(["/jira-batch-create-setup"]) --> B{templates.yml 존재?}
+    A(["/jira-batch-templates"]) --> B{templates.yml 존재?}
     B -- 없음 --> C[템플릿 이름 지정]
     B -- 있음 --> D{추가/수정/삭제?}
     D -- 추가 --> C
@@ -195,8 +195,8 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 
 | 환경 | 배포 경로 |
 |------|---------|
-| Claude Code | `~/.claude/commands/{jira-create,jira-create-setup,jira-batch-create,jira-batch-create-setup}.md` |
-| Codex | `~/.agents/skills/{jira-create,jira-create-setup,jira-batch-create,jira-batch-create-setup}/SKILL.md` |
+| Claude Code | `~/.claude/commands/{jira-create,jira-create-setup,jira-batch-create,jira-batch-templates}.md` |
+| Codex | `~/.agents/skills/{jira-create,jira-create-setup,jira-batch-create,jira-batch-templates}/SKILL.md` |
 
 스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create-setup`으로 각각 설정한다.
 
@@ -274,7 +274,7 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 SDD(설계 문서) 파싱 규칙을 템플릿으로 정의하고, `jira-sdd-templates.yml`에 등록한다.
 
 ```
-/jira-batch-create-setup
+/jira-batch-templates
 ```
 
 1. 샘플 SDD 제공 (파일 경로 또는 붙여넣기)
@@ -342,7 +342,7 @@ config를 바꾸지 않고 한 번만 다른 프로젝트 키를 사용하려면
 
 ### 1. 일괄 생성 (Batch Creation) ✅ 구현 완료
 
-`/jira-batch-create` + `/jira-batch-create-setup`으로 구현됨.
+`/jira-batch-create` + `/jira-batch-templates`으로 구현됨.
 SDD(설계 문서) 기반 Epic/PBI/Sub-task 3단계 계층 일괄 생성을 지원한다.
 SDD 파싱 템플릿 시스템으로 다양한 SDD 포맷에 대응 가능.
 

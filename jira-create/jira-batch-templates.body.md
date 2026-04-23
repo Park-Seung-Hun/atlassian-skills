@@ -3,9 +3,11 @@
 > - 본문에 "AskUserQuestion"이라고 적힌 부분은 구조화 질문 도구를 의미한다. 해당 도구가 없는 환경(예: Codex)에서는 동일 의미의 자연어 질문으로 대체하되, 선택지/검증 조건은 본문에 명시된 그대로 유지한다.
 
 
-# SDD 템플릿 등록
+# SDD 템플릿 관리
 
-jira-batch-create 스킬이 사용하는 SDD 파싱 템플릿을 등록하고 관리한다. 템플릿은 `{{CONFIG_DIR}}/jira-sdd-templates.yml`에 저장된다.
+jira-batch-create 스킬이 사용하는 SDD 파싱 템플릿을 관리한다 — 목록 조회·수정·삭제·직접 추가. 템플릿은 `{{CONFIG_DIR}}/jira-sdd-templates.yml`에 저장된다.
+
+> 신규 등록은 `/jira-batch-create` 첫 실행 중 샘플 SDD 기반으로 자동 처리된다. 이 스킬은 **이미 등록된 템플릿을 보정하거나 SDD 없이 명시 등록하고 싶을 때** 쓰는 편집 진입점이다.
 
 
 ## Step 1 — 기존 템플릿 확인

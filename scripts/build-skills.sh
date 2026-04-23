@@ -11,7 +11,7 @@ SKILLS=(
   "jira-create:jira-create:jira-create-hub"
   "jira-create-setup:jira-create:"
   "jira-batch-create:jira-create:jira-create-hub"
-  "jira-batch-create-setup:jira-create:"
+  "jira-batch-templates:jira-create:"
 )
 
 # ── 기본값 ──
