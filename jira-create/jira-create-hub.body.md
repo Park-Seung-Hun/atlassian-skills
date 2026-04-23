@@ -36,6 +36,11 @@ config 로드 경로인 경우 0-0a에서 customfield 키의 존재 여부 1회 
 - **DEFAULT_EVIDENCE**: `기본 증거 형태` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
 - **SLACK_ID**: `Slack 사용자 ID` 항목 (`(none)`이면 Slack 알림 Step 스킵)
 
+로드 후 **PROJECT_ID 확보**(세션 캐시용):
+1. `jira_search({"jql":"project = {PROJECT_KEY}","fields":"project","limit":1})` 호출.
+2. 응답 `issues[0].project.id`를 **PROJECT_ID**로 캐시한다. 0-0a / 0-1 슬롯별 서브루틴이 scope 필터용으로 재사용한다.
+3. 프로젝트가 비어 있어 `issues` 배열이 공백이면 PROJECT_ID를 `unknown`으로 두고, 이후 scope 필터는 "글로벌 필드만 통과" 규칙으로 축소 적용한다.
+
 ### 0-0b. 현재 설정 확인
 
 > **[차단 지점]** 이 절은 Step 1로 진입하기 전 **반드시 사용자 응답을 받고 종료**한다. config 로드가 성공한 경우 요약 출력과 선택지 질문을 생략할 수 없다. "바로 본문을 실행하는 게 사용자 의도로 보인다"는 판단으로 이 절을 건너뛰는 것을 금지한다.
@@ -95,17 +100,29 @@ AskUserQuestion (**복수 선택**):
 
 **probe**:
 - `jira_search_fields`를 1회 호출하여 customfield 전체 목록을 얻는다.
-- 응답의 각 항목에서 `id`(예: `customfield_10016`) 문자열을 수집한다. `id` 값이 `customfield_`로 시작하는 항목 목록을 추출하여 config 값과 직접 문자열 비교한다.
-- config의 FIELD_SP / FIELD_AC / FIELD_EV 값을 이 목록과 비교한다. `(none)`으로 설정된 슬롯은 검증 대상에서 제외한다.
+- `(none)`으로 설정된 슬롯은 검증 대상에서 제외한다.
+- config의 FIELD_SP / FIELD_AC / FIELD_EV 각 값에 대해 아래 순서로 판정한다:
+  1. `id` 필드가 일치하는 항목을 찾는다. 없으면 **실패 (미존재)**.
+  2. 해당 항목의 `scope` 필드를 확인:
+     - `scope` 키가 **없음** → 글로벌 필드. **통과**.
+     - `scope.type == "PROJECT"` 이고 `scope.project.id`가 0-0에서 캐시한 **PROJECT_ID와 같음** → 현재 프로젝트 전용 필드. **통과**.
+     - `scope.type == "PROJECT"` 이고 `scope.project.id`가 PROJECT_ID와 **다름** → **실패 (다른 프로젝트 전용)**.
+     - PROJECT_ID가 `unknown`인 경우(빈 프로젝트) → `scope` 없는 필드만 통과, PROJECT 스코프 필드는 일괄 실패 처리.
 
-> 참고: 이 검증은 "필드 존재"만 확인한다. "현재 PROJECT_KEY에서 실제로 쓸 수 있는지(프로젝트 스코프 바인딩)"까지는 확인하지 않는다.
+> 이 검증은 "필드 존재 + 현재 프로젝트 스코프 바인딩"까지 함께 확인한다. 동일한 scope 필터를 0-1 슬롯별 후보 제시에도 적용한다.
 
 **실패 감지 시 분기 (슬롯별 순차 처리)**:
 
-어떤 슬롯이 목록에서 확인되지 않으면 해당 슬롯에 대해 아래를 수행한다.
+어떤 슬롯이 위 판정에서 실패하면 해당 슬롯에 대해 아래를 수행한다. 실패 사유에 따라 안내 문구를 달리한다.
 
 ```
+# 미존재
 FIELD_AC(`customfield_99999`)가 jira_search_fields 결과에서 확인되지 않습니다.
+```
+
+```
+# 다른 프로젝트 전용
+FIELD_AC(`customfield_XXXXX`)는 현재 프로젝트 `{PROJECT_KEY}`에서 사용할 수 없습니다(다른 프로젝트 전용 필드).
 ```
 
 AskUserQuestion (단일 선택):
@@ -123,6 +140,16 @@ AskUserQuestion (단일 선택):
 아래 네 개 서브섹션은 독립적으로 호출 가능하다. config 미설정 fallback에서는 0-1-PROJECT → 0-1-SP → 0-1-AC → 0-1-EV 순차 호출. 0-0c/0-0a의 재지정 분기는 해당 슬롯 서브섹션만 호출한다.
 
 > **인라인 모드 SLACK_ID 처리**: config 미설정 인라인 fallback에서는 `SLACK_ID = (none)`으로 고정한다. Slack 알림은 `/jira-create-setup`을 통해서만 활성화된다.
+
+> **[필수] customfield 후보 scope 필터 (0-1-SP / 0-1-AC / 0-1-EV 공통)**: `jira_search_fields` 결과에서 키워드 매칭으로 수집한 customfield 후보를 사용자에게 **제시하기 전에** 아래 scope 필터를 반드시 적용한다. 다른 프로젝트 전용 필드를 후보에 노출하는 것을 금지한다.
+>
+> 1. 0-0에서 캐시한 **PROJECT_ID**를 가져온다. PROJECT_ID가 없으면 `jira_search({"jql":"project = {PROJECT_KEY}","fields":"project","limit":1})`로 즉시 확보 후 캐시한다.
+> 2. 각 customfield 후보의 `scope`를 확인:
+>    - `scope` 키 **없음** → 글로벌 필드. **후보 유지**.
+>    - `scope.type == "PROJECT"` 이고 `scope.project.id == PROJECT_ID` → 현재 프로젝트 전용 필드. **후보 유지**.
+>    - 그 외 → **후보에서 제외** (로그에 "다른 프로젝트 전용 필드 제외: `{key}` (scope.project.id=`{id}`)" 1줄 남기고 사용자 선택지에는 노출하지 않음).
+> 3. 필터링 후 후보가 0개면 키워드 매칭 0개 분기(직접 입력 / 사용 안 함)로 처리한다.
+> 4. 0-0a에서 "재지정"으로 진입한 경우에도 같은 필터를 적용해, 재지정 후보에 다른 프로젝트 전용 필드가 올라오는 것을 방지한다.
 
 #### 0-1-PROJECT — PROJECT_KEY + BOARD_ID 수집
 
