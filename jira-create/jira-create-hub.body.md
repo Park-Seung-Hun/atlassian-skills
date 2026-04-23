@@ -36,10 +36,14 @@ config 로드 경로인 경우 0-0a에서 customfield 키의 존재 여부 1회 
 - **DEFAULT_EVIDENCE**: `기본 증거 형태` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
 - **SLACK_ID**: `Slack 사용자 ID` 항목 (`(none)`이면 Slack 알림 Step 스킵)
 
-로드 후 **PROJECT_ID 확보**(세션 캐시용):
-1. `jira_search({"jql":"project = {PROJECT_KEY}","fields":"project","limit":1})` 호출.
-2. 응답 `issues[0].project.id`를 **PROJECT_ID**로 캐시한다. 0-0a / 0-1 슬롯별 서브루틴이 scope 필터용으로 재사용한다.
-3. 프로젝트가 비어 있어 `issues` 배열이 공백이면 PROJECT_ID를 `unknown`으로 두고, 이후 scope 필터는 "글로벌 필드만 통과" 규칙으로 축소 적용한다.
+로드 후 **PROJECT_ID 확보**(세션 캐시용) — 아래 폴백 체인을 **첫 성공까지 순차 시도**한다. 0-0a / 0-1 슬롯별 서브루틴이 scope 필터용으로 재사용한다.
+
+1. `jira_search({"jql":"project = {PROJECT_KEY}","fields":"project","limit":1})` 호출 → 응답 `issues[0].project.id` 추출. MCP 응답 스키마에 따라 `project` 객체에 `id`가 누락될 수 있음 — 그 경우 2단계로.
+2. `jira_get_all_projects()` 호출 → 응답 배열에서 `key == {PROJECT_KEY}` 인 엔트리의 `id` 추출.
+3. `jira_get_issue({issue_key: 기존 JST 이슈 키, fields: "*all"})` 응답에서 **PROJECT 스코프 customfield들의 `scope.project.id`가 단일 값으로 일관**되면 그 값을 PROJECT_ID로 간주(휴리스틱 폴백). 기존 이슈가 전혀 없거나 일관되지 않으면 실패 처리.
+4. 위 모두 실패 → PROJECT_ID = `unknown`. 이후 scope 필터는 "**글로벌 필드만 통과** + 기타 전부 제외" 규칙으로 보수 적용한다 (아래 0-1 공통 프리앰블 참조).
+
+확보 시도는 **최대 3회**. 성공 즉시 캐시하며, 이후 세션에서는 재조회하지 않는다.
 
 ### 0-0b. 현재 설정 확인
 
@@ -148,13 +152,19 @@ AskUserQuestion (단일 선택):
 
 > **[필수] customfield 후보 scope 필터 (0-1-SP / 0-1-AC / 0-1-EV 공통)**: `jira_search_fields` 결과에서 키워드 매칭으로 수집한 customfield 후보를 사용자에게 **제시하기 전에** 아래 scope 필터를 반드시 적용한다. 다른 프로젝트 전용 필드를 후보에 노출하는 것을 금지한다.
 >
-> 1. 0-0에서 캐시한 **PROJECT_ID**를 가져온다. PROJECT_ID가 없으면 `jira_search({"jql":"project = {PROJECT_KEY}","fields":"project","limit":1})`로 즉시 확보 후 캐시한다.
-> 2. 각 customfield 후보의 `scope`를 확인:
->    - `scope` 키 **없음** → 글로벌 필드. **후보 유지**.
->    - `scope.type == "PROJECT"` 이고 `scope.project.id == PROJECT_ID` → 현재 프로젝트 전용 필드. **후보 유지**.
->    - 그 외 → **후보에서 제외** (로그에 "다른 프로젝트 전용 필드 제외: `{key}` (scope.project.id=`{id}`)" 1줄 남기고 사용자 선택지에는 노출하지 않음).
-> 3. 필터링 후 후보가 0개면 키워드 매칭 0개 분기(직접 입력 / 사용 안 함)로 처리한다.
+> 1. 0-0에서 캐시한 **PROJECT_ID**를 가져온다. 캐시가 없으면 0-0의 PROJECT_ID 확보 폴백 체인(1~4단계)을 즉시 실행하여 확보를 다시 시도한다.
+> 2. PROJECT_ID 확보 결과에 따라 필터링:
+>    - **PROJECT_ID 확보 성공**: 각 customfield 후보의 `scope`를 확인
+>      - `scope` 키 **없음** → 글로벌 필드. **후보 유지**.
+>      - `scope.type == "PROJECT"` 이고 `scope.project.id == PROJECT_ID` → 현재 프로젝트 전용 필드. **후보 유지**.
+>      - 그 외 → **후보에서 제외** (로그에 "다른 프로젝트 전용 필드 제외: `{key}` (scope.project.id=`{id}`)" 1줄 남기고 사용자 선택지에는 **절대 노출하지 않음**).
+>    - **PROJECT_ID = unknown** (폴백 체인 모두 실패): 보수적으로 처리
+>      - `scope` 키 **없음** → 글로벌 필드. **후보 유지**.
+>      - `scope.type == "PROJECT"` → PROJECT_ID 매칭 확인 불가. **후보에서 전원 제외**한다 ("현재 PROJECT_KEY와 매칭 확인 불가한 project-scoped 후보를 보수 제외" 안내 1줄 출력). 이 상태에서 다른 프로젝트 소유 후보를 사용자에게 떠넘겨 고르게 하는 것을 금지한다.
+> 3. 필터링 후 후보가 0개면 사용자에게 아래 안내를 출력하고 `사용 안 함` / `직접 입력`만 제시한다:
+>    > "키워드 매칭은 됐으나 현재 프로젝트 `{PROJECT_KEY}`에 사용 가능한 customfield를 자동 식별하지 못했습니다. 필드 key를 직접 입력하거나 사용 안 함을 선택하세요."
 > 4. 0-0a에서 "재지정"으로 진입한 경우에도 같은 필터를 적용해, 재지정 후보에 다른 프로젝트 전용 필드가 올라오는 것을 방지한다.
+> 5. 글로벌 필드(`scope` 없음)는 **어느 프로젝트에서나 사용 가능**하므로 PROJECT_ID 상태와 무관하게 항상 후보로 유지한다. FIELD_SP의 `Story Points` / `Story point estimate` 같은 글로벌 기본 필드는 이 규칙으로 통과한다.
 
 #### 0-1-PROJECT — PROJECT_KEY + BOARD_ID 수집
 
