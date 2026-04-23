@@ -52,36 +52,51 @@ config 모드에서 customfield key 존재만 검증하는 절(`### 0-0a. config
 
 > 표기: `- [ ]` 미착수 / `- [x]` 완료. 항목 하위 들여쓰기는 세부 내용.
 
-### A. hub.body 진입 흐름 개편 (F 합의 반영)
+### A. hub.body 진입 흐름 개편 (F 합의 반영) ✅ 완료 (2026-04-23)
 
-`jira-create/jira-create-hub.body.md`에 아래 3개 절을 신설하고 관련 지문을 정비한다.
-F 합의에 따라 단순 "강등"이 아닌 "확인 + 수정 + 자동 검증 + 슬롯별 재지정" 흐름으로 확장됨.
+**브랜치**: `refactor/hub-body-entry-flow` (main 기준 7개 커밋) — main 머지 대기
+**E2E 검증**: Codex 기반 S1~S7 (S5 스킵) 모두 통과. 절차는 `hub-body-e2e-codex.md` 참조.
 
-#### A-1. 신규 절
+#### A-1. 신규 절 — 완료
 
-- [ ] `0-0b` 현재 설정 확인 스텝 신설
+- [x] `0-0b` 현재 설정 확인 스텝 신설
   - config 로드 후 PROJECT_KEY / BOARD_ID / FIELD_SP·AC·EV / DEFAULT_PRIORITY / DEFAULT_EVIDENCE / SLACK_ID 요약 출력
   - AskUserQuestion: `[그대로 진행 / 항목 수정]`
-- [ ] `0-0c` 항목별 수정 스텝 신설
+- [x] `0-0c` 항목별 수정 스텝 신설
   - "수정" 선택 시 복수 선택 UI로 대상 슬롯 지정
   - 각 슬롯마다 0-1의 해당 블록을 재실행 → `{{CONFIG_PATH}}` 덮어쓰기(영속화)
   - 완료 후 0-0b로 복귀 (재확인 루프)
-- [ ] `0-0a` 자동 키 검증 + 슬롯별 재지정 분기 신설 (F-2 본질)
+- [x] `0-0a` 자동 키 검증 + 슬롯별 재지정 분기 신설 (F-2 본질)
   - 0-0b에서 "진행" 선택 후 customfield probe 1회 실행
   - 실패 슬롯 감지 시 `[재지정 / 비활성화 / 중단]` 분기
   - "재지정" → 해당 슬롯만 0-1의 블록 재진입 → config 저장
   - "비활성화" → 세션 내 `(none)` 처리, config 미변경
 
-#### A-2. 기존 지문 정비
+#### A-2. 기존 지문 정비 — 완료
 
-- [ ] 라인 11 분기 명확화("config 없을 때만 자동 조회")
-- [ ] 키워드 매칭은 인라인 수집 경로 전용임을 명시
-- [ ] 0-1을 "슬롯별 재호출 가능한 서브루틴"으로 구조화
-  (0-0c와 0-0a 재지정 분기가 슬롯 단위로 재진입하기 위해 필요)
-- [ ] 라인 57 진술 강화("재조회 건너뛰되 customfield key는 1회 검증")
+- [x] 라인 11 분기 명확화("config 없을 때만 자동 조회")
+- [x] 키워드 매칭은 인라인 수집 경로 전용임을 명시
+- [x] 0-1을 "슬롯별 재호출 가능한 서브루틴"으로 구조화 (0-1-PROJECT / 0-1-SP / 0-1-AC / 0-1-EV)
+- [x] 라인 57 진술 강화("재조회 건너뛰되 customfield key는 1회 검증")
 
-설계 근거는 본 문서 **F 섹션(합의 완료)** 및
-`/Users/psh/.claude/plans/fix-jira-batch-create-runtime-compat-keen-zephyr.md`의 Step 3.
+#### A-3. E2E 관찰 기반 추가 보강 (4개 fix 커밋) — 완료
+
+- [x] Step 0 실행 순서 강제 + 0-2 오버라이드 조건에 "config와 다른 프로젝트 키" AND 조건 추가 (`c9941f1`)
+- [x] customfield 후보 scope 필터로 다른 프로젝트 전용 필드 차단 (`59d56b8`)
+- [x] 0-1 사용자 확인 강제 + 0-1-SAVE로 신규 config 저장 절차 추가 (`820b4c4`)
+- [x] PROJECT_ID 확보 폴백 체인(jira_search → jira_get_all_projects → 휴리스틱) + unknown 시 보수 필터링 (`fbfc45d`)
+
+#### 커밋 로그 (main..HEAD)
+
+```
+b9e3b26  refactor(jira-create): hub.body에 config 확인/수정/검증 흐름 추가
+c9941f1  fix(jira-create): hub Step 0 실행 순서 강제 + 0-2 오버라이드 조건 보강
+59d56b8  fix(jira-create): customfield 후보 scope 필터로 다른 프로젝트 전용 필드 차단
+820b4c4  fix(jira-create): 0-1 사용자 확인 강제 + 0-1-SAVE로 신규 config 저장
+fbfc45d  fix(jira-create): PROJECT_ID 확보 폴백 체인 + unknown 시 보수 필터링
+6191b94  docs: F 합의 반영 및 A/C 체크리스트 재편
+dfbdbfd  docs: hub.body 진입 흐름 개편 Codex E2E 테스트 가이드 추가
+```
 
 ### B. ⑤ Codex 미검증 케이스 — 별건
 
@@ -225,22 +240,26 @@ Step A-3 이 파일을 샘플로 신규 템플릿 생성
 
 ## 다음 세션 시작 가이드
 
-1. `git status` / `git log --oneline -10`으로 main 위치 확인
-2. **F 합의 완료** (2026-04-23). F 섹션의 최종 결정 표와 흐름 다이어그램을 먼저 읽고 시작.
-3. 우선순위 추천: **A 브랜치(0-0a/0-0b/0-0c) → `refactor/jira-batch-create-ux`(A-1~A-3 + 스킬 개명) → chore/fix 브랜치들**.
-   A는 hub 공유이므로 단건(jira-create)과 일괄(jira-batch-create) 양쪽에 동시 적용됨.
+1. `git status` / `git log --oneline -10`으로 main 위치 확인.
+   - `refactor/hub-body-entry-flow` 브랜치가 main에 머지된 상태여야 함. 미머지면 먼저 `git merge --no-ff`로 머지(사용자 명시 승인 후).
+2. **A 완료** (2026-04-23). E2E S1~S7 Codex 검증 통과. `hub-body-e2e-codex.md`는 재검증 시 그대로 재사용 가능.
+3. 우선순위 추천: **C-1 (`refactor/jira-batch-create-ux`) → C-3 (`fix/jira-create-align-with-batch`) → C-2 (`chore/jira-batch-create-safety`) → B (Codex 미검증 케이스)**
+   - C-1에서 `jira-batch-create-setup` → `jira-batch-templates` 개명도 함께 진행.
+   - C-3는 hub 변화를 공유하므로 A 머지 이후에만 안전하게 착수.
 4. 작업 시작 전 자동 메모리(`~/.claude/projects/-Users-psh-develop-atlassian-skills/memory/`)에서
-   `jira_batch_create_review_issues.md` 참고. 15개 리뷰 이슈 중 P0 3건은 해결됨, 나머지는 위 C에 매핑.
+   `jira_batch_create_review_issues.md` 참고. 15개 리뷰 이슈 중 P0 3건 + A 관련 이슈들은 해결됨, 나머지는 C에 매핑.
 
 ---
 
 ## 주요 문서 인덱스
 
-- `jira-create/jira-batch-create.body.md` — 본문 (4건 보정 반영됨)
-- `jira-create/jira-create-hub.body.md` — 공유 hub 본문 (이번 세션에선 변경 없음)
+- `jira-create/jira-batch-create.body.md` — batch 본문 (4건 보정 반영됨)
+- `jira-create/jira-create-hub.body.md` — 공유 hub 본문 (A 작업으로 0-0a/0-0b/0-0c + 0-1 서브루틴 + PROJECT_ID 폴백 체인 반영됨)
 - `post-test-findings.md` — 1차 테스트 피드백 12건, P0~P3 분류
-- `batch-create-test-workflow.md` — E2E 테스트 절차
-- `/Users/psh/.claude/plans/fix-jira-batch-create-runtime-compat-keen-zephyr.md` — 이번 갱신의 plan 파일
+- `batch-create-test-workflow.md` — batch 초기 E2E 테스트 절차
+- `hub-body-e2e-codex.md` — A 작업 Codex E2E 가이드 (S1~S7 시나리오)
+- `/Users/psh/.claude/plans/a-hub-body-flickering-duckling.md` — A 작업 plan
+- `/Users/psh/.claude/plans/fix-jira-batch-create-runtime-compat-keen-zephyr.md` — 이전 fix 브랜치 plan
 
 ---
 
