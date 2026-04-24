@@ -593,7 +593,9 @@ Epic 후처리 (3단계 호출 체인, 단건 스킬과 동일 패턴):
 
 > 🟢 PBI {N}건 검증 중... (N = PBI 총 건수)
 
-`jira_batch_create_issues`를 `validate_only: true`로 사전 검증 후 `validate_only: false`로 실제 생성:
+**2단계 호출 체인 (필수 순서, 생략 금지)**:
+
+**호출 1 — 사전 검증 (`validate_only: true`)**:
 
 ```
 jira_batch_create_issues({
@@ -602,11 +604,30 @@ jira_batch_create_issues({
     { project_key: "PROJ", summary: "...", issue_type: ISSUE_TYPE_MAP["Task"],  assignee: "{ASSIGNEE}" },
     ...
   ],
-  validate_only: false
+  validate_only: true
 })
 ```
 
-검증 실패 건은 에러 원인과 함께 리포트하고 사용자에게 알린다.
+응답의 에러 필드를 건별로 수집한다. **호출 1을 건너뛰고 곧바로 `validate_only: false`로 실 생성하는 것은 규약 위반**이다. Jira Cloud의 필드 제약·권한·issue type 매핑 오류를 payload 수준에서 먼저 걸러내 반쪽 생성을 방지한다.
+
+**검증 결과 처리**:
+
+- **실패 0건**: 곧바로 호출 2로 진행.
+- **실패 1건 이상**: 실패 건의 에러 원인을 사용자에게 **표로 리포트**하고 AskUserQuestion: `[실패 건 제외하고 나머지 생성 / 전체 중단]` 2지 질문.
+  - Codex 등 AskUserQuestion 미지원 환경에서는 `나머지 생성` / `중단` 자연어 명령으로 대체.
+  - 사용자 확인 없이 자동으로 `validate_only: false`를 호출해 생성하는 것은 **금지**.
+  - "전체 중단" 선택 시 이슈를 하나도 생성하지 않고 Step 7 리포트로 넘어간다(Phase A에서 생성된 Epic은 그대로 유지되며, 후처리 없이 남는다 — Step 7에서 경고).
+
+**호출 2 — 실제 생성 (`validate_only: false`)**:
+
+호출 1을 통과한 이슈(또는 사용자가 "실패 건 제외하고 나머지 생성"에 동의한 경우 통과분)만 포함하여 호출한다:
+
+```
+jira_batch_create_issues({
+  issues: [ ...호출 1 통과분... ],
+  validate_only: false
+})
+```
 
 > 🟢 PBI {N}건 일괄 생성 중...
 
@@ -626,6 +647,7 @@ jira_batch_create_issues({
   ```
   - `{FIELD_SP}`·`{FIELD_AC}`·`{FIELD_EV}`가 `(none)`이면 해당 키 생략.
   - `timetracking.originalEstimate`는 추정치가 있는 경우만 포함.
+  - **`parent` 타입**: 값은 반드시 문자열 이슈 키(예: `"JST-86"`). 객체형 `{"key": "..."}`·`{"id": "..."}`은 거절된다. Phase C 호출 1의 parent와 동일 규칙.
 - **호출 3** — `jira_update_issue`: description 단독 설정
   ```json
   { "description": "## 목적\n...\n\n## 범위\n..." }
@@ -657,6 +679,7 @@ Sub-task는 batch 경로 대신 각 항목마다 아래 **3단계 호출 체인*
   ```json
   { "parent": "{PBI_KEY}" }
   ```
+  > **parent 타입**: 값은 **반드시 문자열 이슈 키**(예: `"JST-86"`)여야 한다. 객체형 `{"parent": {"key": "JST-86"}}` 또는 `{"parent": {"id": "..."}}`는 MCP 서버가 거절한다. Jira REST API 원형과 달리 `mcp-atlassian`은 `additional_fields.parent`에 대해 문자열 키만 수용한다.
 - priority·커스텀 필드·timetracking은 호출 1에 포함하지 않는다.
 
 **호출 2 — `jira_update_issue` (커스텀 필드 + priority + timetracking)**:
