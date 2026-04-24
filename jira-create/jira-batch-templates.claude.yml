@@ -1,0 +1,5 @@
+---
+allowed-tools: AskUserQuestion, Read, Write
+description: jira-batch-create 스킬이 사용하는 SDD 파싱 템플릿을 관리한다(목록·수정·삭제·추가 등록). 최초 등록은 /jira-batch-create 첫 실행 중 자동 흡수되므로 이 스킬은 편집 진입점이다.
+disable-model-invocation: false
+---
