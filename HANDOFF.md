@@ -1,8 +1,8 @@
 # HANDOFF — jira-batch-create 후속 정비
 
-**갱신**: 2026-04-24 · O-6 머지 완료. 배치 잔여 정비 진행 중.
+**갱신**: 2026-04-24 · O-3 머지 완료 (+O-11/O-12/O-13 동반 해결). 배치 잔여 정비 진행 중.
 **브랜치**: `main` (작업 깨끗)
-**main 동기화**: `origin/main`보다 **24커밋 앞섬** (미push)
+**main 동기화**: `origin/main`보다 **7커밋 앞섬** (미push; origin/main이 그간 `64e2f68`까지 동기화된 상태 기준)
 **배포 방침**: 사용자 방침 — **"한번에 배포"**. push/전역 배포는 다음 브랜치까지 누적 후 한 번에.
 
 ---
@@ -11,17 +11,16 @@
 
 **방침**: 배치(`jira-batch-create`) 관련 수정사항을 전부 최상 우선. 단건(`jira-create`) 관련(C-3)은 배치 잔여 정리 후로 유예.
 
-다음 브랜치 후보 (배치 중심, O-6 완료 후):
+다음 브랜치 후보 (배치 중심, O-3 완료 후):
 
-1. **O-3 probe 이연** (`refactor/jira-batch-probe-defer`) — 중단/취소 경로 probe 7~10회 절감. hub 수정이지만 배치 실사용에서 드러난 문제 ← 다음
-2. **트리 들여쓰기 규칙 결정** — 절대/상대/소실 3가지 편차 중 하나로 본문 통일
-3. **YAML 스키마 표기법 통일** — placeholder vs 정규식
-4. **Fix 1 매칭 안내 중복 출력 해소** — 1-3 저장 경로
-5. **`chore/build-cleanup-renamed`** — 개명 후 구 디렉토리 자동 청소
-6. **C-2 #11 --yes 승인 재사용** (`feat/jira-batch-reuse-approval`) — 배치 재실행 UX
+1. **트리 들여쓰기 규칙 결정** — 절대/상대/소실 3가지 편차 중 하나로 본문 통일 ← 다음
+2. **YAML 스키마 표기법 통일** — placeholder vs 정규식
+3. **Fix 1 매칭 안내 중복 출력 해소** — 1-3 저장 경로
+4. **`chore/build-cleanup-renamed`** — 개명 후 구 디렉토리 자동 청소
+5. **C-2 #11 --yes 승인 재사용** (`feat/jira-batch-reuse-approval`) — 배치 재실행 UX
 
 **이후**:
-7. **C-3 단건 정합화** — 배치 잔여 전부 정리 후 착수
+6. **C-3 단건 정합화** — 배치 잔여 전부 정리 후 착수
 
 누적 push + 전역 배포는 배치 정비 일단락 후 검토.
 
@@ -29,34 +28,19 @@
 
 ## 📊 현재 상태
 
-### 로컬 main 미push 커밋 (origin/main..main, 24건)
+### 로컬 main 미push 커밋 (origin/main..main, 7건)
 
 ```
-9afa4b2  Merge branch 'chore/tree-marker-design-decision'             ← O-6 머지
-2ec7859  chore: 트리 origin 마커 폐기 (O-6 옵션 C 채택)
-87ba62e  docs: O-9 머지 반영 및 O-6 다음 주제로 이동
-f432ce1  Merge branch 'fix/jira-batch-phase-log-enforce'              ← O-9 머지
-f9ef9b4  fix: Phase A/B/C 진행률 메시지 출력 강제 (O-9)
-7c945d0  docs: 후속 작업 우선순위를 배치 관련 전부 최상으로 재정렬
-7395caf  docs: C-2 부분 완료 + O-8 완료 + 실 생성 회귀 결과 반영
-479b430  Merge branch 'chore/jira-batch-validate-only-enforce'
-5b8f59b  chore: parent 필드를 문자열 이슈 키 전용으로 명시 (C-2 #6)
-91540e8  chore: Phase B validate_only 사전 검증 강제 (C-2 #10)
-224838a  Merge branch 'fix/jira-batch-tree-numbering'
-c3c13b3  fix: 트리 번호 매김 규칙을 깊이 우선 순회로 명시 (O-8)
-f0f34ba  Merge branch 'refactor/jira-batch-preview-polish'           ← E+G 머지
-5440218  docs: E+G 구현 완료·검증 통과 반영 및 후속 우선순위 재정렬
-0a0cbcd  fix: 트리 라인 증거 placeholder를 {증거값}으로 명시 (O-7)
-aa1636c  feat: Phase A/B/C 진행률 로그에 타입 한국어 병기 (G)
-eedfc51  feat: 미리보기 (C)에 리스트 다시 보기 선택지 추가 (E)
-900aca4  Merge branch 'refactor/jira-batch-create-ux'                ← C-1 머지
-3886866  docs: C-1 E2E 전체 통과 및 머지 대기 반영
-4d91b1b  fix: 1-1 경로 재입력 프롬프트를 0-0b와 분리 (O-1)
-b341e20  fix: 템플릿 매칭 안내 출력 강제 + 트리 마커 기준 명확화
-e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로 전환
-7c9bd60  refactor: jira-batch-create-setup → jira-batch-templates 개명
-8a7941c  feat: SDD 경로 확보/템플릿 매칭/템플릿 생성 흐름 내장
+3030197  Merge branch 'refactor/jira-batch-probe-defer'            ← O-3 머지
+967b0e8  fix(jira-create-hub,batch,single): 재지정 UI 강제 2차 + 재확인 게이트 추가 (O-12/O-13)
+0a47f2b  fix(jira-create-hub): 0-0a probe 단일 호출 + 재지정 UI 강제 (O-11/O-12)
+b95b636  docs: O-11 기록 추가 (O-3 E2E S2 회귀 중 발견)
+1957d0b  refactor(jira-create): Step 6 진입 직전 probe 호출 추가 (O-3)
+726354f  refactor(jira-batch-create): Step 4 (C-3) 확정 직후 probe 호출로 이연 (O-3)
+d204bc8  refactor(jira-create-hub): 0-0a probe를 지연 실행 서브루틴으로 재정의 (O-3)
 ```
+
+> origin/main 이전 기준(O-6 머지 시점)까지의 누적은 `git log origin/main~17..main` 등으로 조회. 여기에는 최근 O-3 브랜치 작업분만 표기.
 
 ### 완료된 개선 (영역별)
 
@@ -73,6 +57,10 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 | C-2 #11: --yes 승인 재사용 | ⏸️ 유예 | 설계 규모, 별건 `feat/jira-batch-reuse-approval` |
 | O-9: Phase 로그 생략 재-강제 | ✅ 완료 | 머지 `f432ce1`. 본문에 "출력 지시 (생략 금지)" 가드 추가. 실사용 때 효과 관찰 예정 |
 | O-6: 트리 마커 기준 결정 | ✅ 완료 | 머지 `9afa4b2`. 옵션 C(트리 마커 폐기) 채택. 필드 출처는 (B-1)에서만 확인 |
+| O-3: Step 0 probe 이연 | ✅ 완료 | 머지 `3030197`. 지연 실행 서브루틴 + 세션 플래그로 재호출 차단. E2E S1~S4 PASS (S5 단건은 batch 범위 밖으로 스킵) |
+| O-11: probe keyword 분할 호출 | ✅ 완료 | fix `0a47f2b`. `keyword` 없이 `limit: 200`으로 1회. S3 재테스트에서 1회 확인 |
+| O-12: 재지정 UI 스킵·sed 치환 | ✅ 완료 | fix `0a47f2b` + `967b0e8`. Read+Write 외 저장 도구 금지, "재수집하시겠습니까?" 선행 질문을 0-0a 재지정에도 적용 |
+| O-13: 재지정 후 자동 생성 | ✅ 완료 | fix `967b0e8`. 0-0a 반환값 3가지(통과/재지정/중단) + 호출 측 재확인 게이트("설정이 변경됐습니다 … 이어갈까요?") 신설 |
 
 ### 실 생성 회귀 결과 (2026-04-24)
 
@@ -86,6 +74,18 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 | Phase 로그 메시지 (G) | ❌ Codex가 `🟢/✅` 진행률 메시지 **전부 생략** — **O-9 신규 관찰** |
 | Slack DM (Step 6) | ✅ 정상 전송 |
 
+### O-3 E2E 회귀 결과 (2026-04-24, batch 범위)
+
+14건 fixture(test-sdd.md → JST-108~121)로 S2 풀 생성 검증 + 삭제 완료. 나머지는 probe/분기 관찰로 실 생성 최소화.
+
+| 시나리오 | 결과 | 핵심 검증 |
+|---|---|---|
+| S1 중단 경로 | ✅ | `jira_search_fields` 0회 |
+| S2 정상 생성 | ✅ | probe 1회 + Phase A/B/C 완주 (14건 생성/삭제) — O-11 부차 관찰로 연결 |
+| S3 재지정 (2차) | ✅ | 1회 probe + UI 흐름 전체 + 재확인 게이트 — O-11/O-12/O-13 전부 해결 확인 |
+| S4 멱등 | ✅ | 수정 루프 2회 + 보기 1회 후에도 probe 총 1회 (세션 플래그 동작) |
+| S5 단건 | ⏭ 스킵 | batch 관점 범위 밖 (단건 본문 수정은 포함, 회귀는 미실시) |
+
 ---
 
 ## 🔍 발견 관찰 (후속 주제)
@@ -97,6 +97,10 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - **O-8**: 트리 번호 매김 규칙 미명시 → `c3c13b3`
 - **O-9**: Phase A/B/C 진행률 메시지 생략 → `f9ef9b4` (본문 강화, 실사용 관찰 예정)
 - **O-6**: 트리 마커 기준 모델별 편차 → `2ec7859` (옵션 C 채택, 트리 마커 폐기)
+- **O-3**: Step 0 customfield probe 낭비 → 머지 `3030197` (지연 실행 서브루틴 + 세션 플래그)
+- **O-11**: 0-0a probe keyword 분할 호출 → fix `0a47f2b` (`keyword` 없이 `limit: 200` 1회 강제)
+- **O-12**: 재지정 UI 스킵·`sed`/`perl` 직접 치환 → fix `0a47f2b` + `967b0e8` (Read+Write 외 저장 도구 금지, 재수집 선행 질문 확장)
+- **O-13**: 재지정 후 사용자 재확인 없이 자동 생성 → fix `967b0e8` (반환값 3가지 + 호출 측 재확인 게이트)
 
 ### 기록만 (수정 불필요)
 
@@ -105,15 +109,12 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 ### 미해결 (후속 브랜치 대상)
 
-- **O-3**: Step 0 customfield probe 낭비 → `refactor/jira-batch-probe-defer` (브랜치 작업 중, E2E S1/S2 통과 후 O-11 부차 관찰)
-- **트리 들여쓰기 규칙 모호**: 본문은 절대(Epic 0 / PBI 2 / Sub-task 4), Codex는 세션에 따라 상대(부모+2) 또는 **0 들여쓰기(완전 소실)** — 3가지 편차
+- **트리 들여쓰기 규칙 모호**: 본문은 절대(Epic 0 / PBI 2 / Sub-task 4), Codex는 세션에 따라 상대(부모+2) 또는 **0 들여쓰기(완전 소실)** — 3가지 편차 ← 다음
 - **YAML 스키마 표기법 모호**: placeholder(`{title}`) vs 정규식
 - **1-3 저장 후 매칭 안내 중복 출력**
 - **`build-skills.sh` 개명 청소 누락**
 - **Phase A↔B 호출 경계 섞임 (신규 부차 관찰)**: 실 생성 중 Epic 호출 3(description)이 Phase B validate_only보다 **이후** 실행됨. 기능 문제 없으나 본문 Phase 경계 순서 규약과 불일치. 참고 기록
-- **O-11 (2026-04-24, O-3 E2E S2/S3 회귀 중 발견)**: 0-0a probe가 `jira_search_fields`를 keyword 필터로 분할·교차 호출 (S2 3회, S3 7회). fix(hub) 커밋 `0a47f2b` — `keyword` 인자 없이 `limit: 200`으로 1회만, 분할/교차/재시도 금지 명시. S3 재테스트에서 **1회 호출 확인**, ✅ 해결.
-- **O-12 (2026-04-24, O-3 E2E S3 회귀 중 발견)**: 0-0a "재지정" 선택 시 0-1 서브섹션 UI를 스킵하고 `perl` / `sed`로 `{{CONFIG_PATH}}` 직접 치환. 1차 fix(`0a47f2b`) 후에도 재발(Codex가 `sed`까지 시도). 2차 fix로 (1) 저장 도구를 `Read`+`Write`만으로 제한하고 Bash 치환 도구(`sed`/`perl`/`awk`/리다이렉션 등) 일괄 금지, (2) 0-1 서브섹션의 "재수집하시겠습니까?" 선행 질문을 0-0a 재지정 경로에도 적용, (3) 실패 안내 문구에 후보값 동반 노출 금지 조항을 별도 박스로 강조.
-- **O-13 (2026-04-24, O-3 E2E S3 재테스트 중 발견)**: 재지정 완료 후 Codex가 사용자 재확인 없이 바로 Epic 생성 호출(`jira_create_issue`) 시도. 사용자가 "왜 내 허락도 없이 생성하려고 하지?"로 질책. 원인: 서브루틴 반환값이 `통과`/`중단` 2가지로만 정의돼 config 변경 발생 시 호출 측이 분기하지 못했음. 2차 fix로 hub 0-0a 반환값을 `통과` / `재지정` / `중단` 3가지로 확장하고, `재지정` 반환 시 호출 측 배치/단건 본문이 "설정이 변경됐습니다 … 이어갈까요?" 재확인을 반드시 출력하도록 명시.
+- **O-14 (기록만)** Codex `Edited`/`apply_patch` 내장 편집 도구 허용 여부 명시 필요. 2차 fix에서 `Read + Write`만 허용했는데 Codex가 `Edited` diff 도구로 저장 (Bash 치환 우회 없음). 본질 정신은 준수하나 문구 엄격 해석 시 위반. 필요하면 본문에 "Codex 내장 구조적 편집(`Edited`/`apply_patch`)은 Read+Write의 축약으로 간주해 허용"을 명시.
 
 ---
 
@@ -123,16 +124,16 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 **배치 관련 — 최상 (전부 `jira-batch-create.body.md` 또는 hub 영향)**:
 
-1. **`refactor/jira-batch-probe-defer`** (O-3) — 🔴 설계 규모 큼, hub 수정 + 단건 회귀 필요 ← 다음
-2. **트리 들여쓰기 규칙 결정** — 🟠 절대 / 상대 / 소실 중 하나로 본문 통일
-3. **YAML 스키마 표기법 통일** — 🟠 placeholder vs 정규식
-4. **Fix 1 매칭 안내 중복 출력 해소** — 🟠 1-3 저장 경로
-5. **`chore/build-cleanup-renamed`** — 🟠 `scripts/build-skills.sh`에 개명 후 구 디렉토리 자동 청소
-6. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟡 실사용 검증 필요 (플래그 전달 방식)
+1. **트리 들여쓰기 규칙 결정** — 🟠 절대 / 상대 / 소실 중 하나로 본문 통일 ← 다음
+2. **YAML 스키마 표기법 통일** — 🟠 placeholder vs 정규식
+3. **Fix 1 매칭 안내 중복 출력 해소** — 🟠 1-3 저장 경로
+4. **`chore/build-cleanup-renamed`** — 🟠 `scripts/build-skills.sh`에 개명 후 구 디렉토리 자동 청소
+5. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟡 실사용 검증 필요 (플래그 전달 방식)
 
 **단건 관련 — 배치 잔여 후**:
 
-7. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 한국어 Jira 실패 방지. 배치 정비 일단락 후 착수
+6. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 한국어 Jira 실패 방지. 배치 정비 일단락 후 착수
+7. **`fix/jira-create-probe-defer-regression`** (S5 보류 회귀) — 🟡 O-3에서 단건 본문도 수정했으나 회귀 테스트 미실시. 배치 정비 일단락 후 함께 검증.
 
 ### C-3. `fix/jira-create-align-with-batch`
 
@@ -141,17 +142,9 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - [ ] A(hub)가 공통으로 들어가 있음 — 단건 본문에만 없는 Step 2-X 블록이 대상
 - [ ] 실 회귀: JST 단건 1건 생성 후 삭제
 
-### O-3. `refactor/jira-batch-probe-defer`
+### O-3. `refactor/jira-batch-probe-defer` (✅ 머지 완료 `3030197`)
 
-**수정 설계 후보**:
-- **A — 세션 내 이연**: 0-0a probe를 "생성 직전"으로 이동
-- **B — config 캐시**: `last_validated_at` 타임스탬프로 N시간 스킵
-
-**E2E**:
-- [ ] hub 진입 → probe 스킵 (중단 경로)
-- [ ] batch 실 생성 → Step 4 `생성` 시점 probe 1회
-- [ ] 단건 생성 → probe 위치 검증
-- [ ] 손상된 customfield → probe 실패 메시지 정상 노출
+옵션 A(세션 내 이연) 채택. Step 4 (C-3) 확정 직후 / 단건 Step 5 확인 직후에서 hub 0-0a 지연 실행 서브루틴 호출. 세션 플래그 `customfield_probe_passed`로 재호출 차단. 회귀 중 발견한 O-11/O-12/O-13도 본 브랜치에서 동시 해결.
 
 ### C-2 #11. `feat/jira-batch-reuse-approval`
 
@@ -178,6 +171,7 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - `batch-ux-e2e-codex.md` — C-1 E2E 가이드 (untracked 로컬 유지)
 - `polish-e2e-codex.md` — E+G E2E 가이드 (untracked 로컬 유지)
 - `hub-body-e2e-codex.md` — A 작업 E2E 가이드
+- `probe-defer-e2e-codex.md` — O-3 E2E 가이드 (untracked 로컬 유지)
 - `post-test-findings.md` — 1차 테스트 피드백 12건
 
 ### 자동 메모리
@@ -190,11 +184,13 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 - `/Users/psh/.claude/plans/structured-zooming-glacier.md` — C-1
 - `/Users/psh/.claude/plans/a-hub-body-flickering-duckling.md` — A
+- `/Users/psh/.claude/plans/refactor-jira-batch-probe-defer-wise-conway.md` — O-3
 
 ---
 
 ## 🗓 완료된 작업 로그 (요약)
 
+- **2026-04-24** O-3 머지 (`3030197`) — 0-0a customfield probe를 지연 실행 서브루틴으로 전환. E2E 회귀 중 O-11(probe keyword 분할)·O-12(재지정 UI 스킵)·O-13(재지정 후 자동 생성) 부차 발견분도 본 브랜치에서 함께 해결. batch 범위 S1~S4 PASS, S5 단건은 스킵.
 - **2026-04-24** O-6 머지 (`9afa4b2`) — 트리 origin 마커 폐기 (옵션 C). 모델별 해석 편차 제거, 구조 요약 기능 선명화. 필드 출처는 (B-1)에서만.
 - **2026-04-24** O-9 머지 (`f432ce1`) — Phase A/B/C 진행률 메시지 출력 강제. 본문에 "출력 지시 (생략 금지)" 가드 추가. 실사용 때 효과 관찰 예정.
 - **2026-04-24** C-2 부분 머지 (`479b430`) — #10 validate_only 강제, #6 parent 문자열 키. 실 JST 5건 회귀 PASS 후 정리.
