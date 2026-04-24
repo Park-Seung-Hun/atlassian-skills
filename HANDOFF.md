@@ -111,7 +111,8 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - **1-3 저장 후 매칭 안내 중복 출력**
 - **`build-skills.sh` 개명 청소 누락**
 - **Phase A↔B 호출 경계 섞임 (신규 부차 관찰)**: 실 생성 중 Epic 호출 3(description)이 Phase B validate_only보다 **이후** 실행됨. 기능 문제 없으나 본문 Phase 경계 순서 규약과 불일치. 참고 기록
-- **O-11 (2026-04-24 발견, O-3 E2E S2 회귀 중)**: 0-0a probe가 `jira_search_fields`를 **1회 + keyword 필터 없이 전체 목록**으로 가져와야 하는데, Codex가 `keyword=customfield_XXXXX`로 각 필드별 분할 호출하여 **3회** 호출함. 본문 지문("1회 호출하여 customfield 전체 목록을 얻는다")이 "keyword 파라미터를 쓰지 말 것"을 명시하지 않아 해석 편차 발생. O-3 이연 로직은 의도대로 작동(Step 1~4 probe 0회, (C) "생성" 확정 직후 1단위 호출). **수정 후보**: 0-0a probe 문구에 "`keyword` 인자 없이 전체 목록을 1회 호출"을 명시. 후속 브랜치 `fix/jira-batch-probe-single-call` 후보로 기록.
+- **O-11 (2026-04-24 발견, O-3 E2E S2/S3 회귀 중)**: 0-0a probe가 `jira_search_fields`를 **1회 + keyword 필터 없이 전체 목록**으로 가져와야 하는데, Codex가 `keyword=customfield_XXXXX` / `keyword="acceptance criteria"` / `keyword="evidence"` 등으로 분할·교차 호출함 (S2 3회, S3 7회). 원인: 본문 지문이 "keyword 파라미터 금지"와 "응답 절단 시에도 재시도 금지"를 명시하지 않아서. O-3 이연 로직은 의도대로 작동(Step 1~4 probe 0회). **O-3 브랜치 내에서 본문 보강으로 fix** (커밋 예정, `keyword` 인자 없이 `limit: 200`으로 1회만, 분할/교차/재시도 금지 명시).
+- **O-12 (2026-04-24 발견, O-3 E2E S3 회귀 중)**: 0-0a 실패 분기 **"재지정" 선택 시 0-1 서브섹션의 사용자 확인 UI를 완전히 스킵**하고 `perl -0pi -e`로 `{{CONFIG_PATH}}`를 직접 치환함. 실패 안내 문구에 "현재 JST에서 쓰이는 AC 후보는 인수 기준 (customfield_12881)로 확인됩니다"를 함께 노출한 게 Codex가 "사용자가 이미 동의한 것으로 간주"하게 만든 직접 원인. **O-3 브랜치 내에서 본문 보강으로 fix** (커밋 예정, (1) 재지정 분기에서 sed/perl/Write 직접 치환 금지 + 0-1 서브섹션 재진입 강제, (2) 실패 안내 문구에 후보값 동반 노출 금지).
 
 ---
 
