@@ -105,12 +105,13 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 ### 미해결 (후속 브랜치 대상)
 
-- **O-3**: Step 0 customfield probe 낭비 → `refactor/jira-batch-probe-defer`
+- **O-3**: Step 0 customfield probe 낭비 → `refactor/jira-batch-probe-defer` (브랜치 작업 중, E2E S1/S2 통과 후 O-11 부차 관찰)
 - **트리 들여쓰기 규칙 모호**: 본문은 절대(Epic 0 / PBI 2 / Sub-task 4), Codex는 세션에 따라 상대(부모+2) 또는 **0 들여쓰기(완전 소실)** — 3가지 편차
 - **YAML 스키마 표기법 모호**: placeholder(`{title}`) vs 정규식
 - **1-3 저장 후 매칭 안내 중복 출력**
 - **`build-skills.sh` 개명 청소 누락**
 - **Phase A↔B 호출 경계 섞임 (신규 부차 관찰)**: 실 생성 중 Epic 호출 3(description)이 Phase B validate_only보다 **이후** 실행됨. 기능 문제 없으나 본문 Phase 경계 순서 규약과 불일치. 참고 기록
+- **O-11 (2026-04-24 발견, O-3 E2E S2 회귀 중)**: 0-0a probe가 `jira_search_fields`를 **1회 + keyword 필터 없이 전체 목록**으로 가져와야 하는데, Codex가 `keyword=customfield_XXXXX`로 각 필드별 분할 호출하여 **3회** 호출함. 본문 지문("1회 호출하여 customfield 전체 목록을 얻는다")이 "keyword 파라미터를 쓰지 말 것"을 명시하지 않아 해석 편차 발생. O-3 이연 로직은 의도대로 작동(Step 1~4 probe 0회, (C) "생성" 확정 직후 1단위 호출). **수정 후보**: 0-0a probe 문구에 "`keyword` 인자 없이 전체 목록을 1회 호출"을 명시. 후속 브랜치 `fix/jira-batch-probe-single-call` 후보로 기록.
 
 ---
 
