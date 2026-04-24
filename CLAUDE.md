@@ -110,6 +110,12 @@ SKILLS=(
 
 ---
 
+## E2E 회귀 가이드 작성
+
+본문 수정 후 사용자가 Codex로 돌리는 회귀 테스트 가이드는 **`templates/e2e-codex-template.md`를 복사해 시작점으로 쓴다**. 플레이스홀더(`{{...}}`)를 채워 `<task-slug>-e2e-codex.md`로 저장소 루트에 저장. 가이드 파일 자체는 **untracked 로컬 유지**가 관례(회귀가 끝나면 삭제 또는 브랜치 노트로만 사용). 템플릿 말미의 "가이드 사용 규약" 섹션은 수정하지 말 것 — 실패 보고 4종, 보정 사이클 2회 상한, project scope 선배포 등 고정 규약을 담고 있다.
+
+---
+
 ## 커밋 컨벤션
 
 Conventional Commits를 따른다. 형식: `type(scope): subject`
