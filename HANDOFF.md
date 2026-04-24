@@ -9,14 +9,23 @@
 
 ## 🎯 지금 이어갈 것
 
-다음 브랜치 후보 (치명도·비용 고려):
+**방침**: 배치(`jira-batch-create`) 관련 수정사항을 전부 최상 우선. 단건(`jira-create`) 관련(C-3)은 배치 잔여 정리 후로 유예.
 
-1. **C-3 단건 정합화** (`fix/jira-create-align-with-batch`) — batch의 P0 패턴(한국어 ISSUE_TYPE_MAP, currentUser assignee)을 단건 `jira-create.body.md`에 적용. 한국어 Jira 인스턴스에서 단건 호출 실패 방지. 🟡 3순위
-2. **O-9 G 로그 생략 재-강제** (`fix/jira-batch-phase-log-enforce`) — Phase A/B/C 진행률 메시지가 Codex 환경에서 전부 생략됨. 본문 템플릿에 "반드시 1줄 출력 — 생략 금지" 가드 추가 필요. 🟡
-3. **O-6 마커 기준 설계 결정** — any-field-user vs summary 기준 확정 + 본문 반영. 🟢
-4. **O-3 probe 이연** — 설계 규모 있음. 🟢
+다음 브랜치 후보 (배치 중심 재정렬):
 
-누적이 쌓였으니 C-3 하나 더 하고 **누적 push + 전역 배포** 검토 가능.
+1. **O-9 Phase 로그 생략 재-강제** (`fix/jira-batch-phase-log-enforce`) — Phase A/B/C 진행률 메시지가 Codex 환경에서 전부 생략됨. 본문 템플릿에 "반드시 1줄 출력 — 생략 금지" 가드 추가. 비용 낮음
+2. **O-6 마커 기준 설계 결정** (`chore/tree-marker-design-decision`) — any-field-user vs summary 기준 확정 + 본문 반영
+3. **O-3 probe 이연** (`refactor/jira-batch-probe-defer`) — 중단/취소 경로 probe 7~10회 절감. hub 수정이지만 배치 실사용에서 드러난 문제
+4. **트리 들여쓰기 규칙 결정** — 절대/상대/소실 3가지 편차 중 하나로 본문 통일
+5. **YAML 스키마 표기법 통일** — placeholder vs 정규식
+6. **Fix 1 매칭 안내 중복 출력 해소** — 1-3 저장 경로
+7. **`chore/build-cleanup-renamed`** — 개명 후 구 디렉토리 자동 청소
+8. **C-2 #11 --yes 승인 재사용** (`feat/jira-batch-reuse-approval`) — 배치 재실행 UX
+
+**이후**:
+9. **C-3 단건 정합화** — 배치 잔여 전부 정리 후 착수
+
+누적 push + 전역 배포는 배치 정비 일단락 후 검토.
 
 ---
 
@@ -100,14 +109,22 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 ## 📋 후속 작업 체크리스트
 
-### 📌 추천 우선순위 (다음 브랜치)
+### 📌 추천 우선순위 (다음 브랜치, 배치 최상)
 
-1. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 스킬 한국어 Jira 실패 방지
-2. **`fix/jira-batch-phase-log-enforce`** (O-9) — 🟡 본문 1~2줄 강화
-3. **`chore/tree-marker-design-decision`** (O-6) — 🟢 설계 주제
-4. **`refactor/jira-batch-probe-defer`** (O-3) — 🟢 설계 규모 큼
-5. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟢 실사용 검증 필요
-6. **나머지 UX**: 들여쓰기 / YAML 표기 / 1-3 중복 / build-cleanup
+**배치 관련 — 최상 (전부 `jira-batch-create.body.md` 또는 hub 영향)**:
+
+1. **`fix/jira-batch-phase-log-enforce`** (O-9) — 🔴 본문 1~2줄 강화로 Phase 로그 출력 강제
+2. **`chore/tree-marker-design-decision`** (O-6) — 🔴 설계 결정 + 본문 반영
+3. **`refactor/jira-batch-probe-defer`** (O-3) — 🔴 설계 규모 큼, hub 수정 + 단건 회귀 필요
+4. **트리 들여쓰기 규칙 결정** — 🟠 절대 / 상대 / 소실 중 하나로 본문 통일
+5. **YAML 스키마 표기법 통일** — 🟠 placeholder vs 정규식
+6. **Fix 1 매칭 안내 중복 출력 해소** — 🟠 1-3 저장 경로
+7. **`chore/build-cleanup-renamed`** — 🟠 `scripts/build-skills.sh`에 개명 후 구 디렉토리 자동 청소
+8. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟡 실사용 검증 필요 (플래그 전달 방식)
+
+**단건 관련 — 배치 잔여 후**:
+
+9. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 한국어 Jira 실패 방지. 배치 정비 일단락 후 착수
 
 ### C-3. `fix/jira-create-align-with-batch`
 
