@@ -1,8 +1,8 @@
 # HANDOFF — jira-batch-create 후속 정비
 
-**갱신**: 2026-04-24 · O-9 머지 완료. 배치 잔여 정비 진행 중.
+**갱신**: 2026-04-24 · O-6 머지 완료. 배치 잔여 정비 진행 중.
 **브랜치**: `main` (작업 깨끗)
-**main 동기화**: `origin/main`보다 **21커밋 앞섬** (미push)
+**main 동기화**: `origin/main`보다 **24커밋 앞섬** (미push)
 **배포 방침**: 사용자 방침 — **"한번에 배포"**. push/전역 배포는 다음 브랜치까지 누적 후 한 번에.
 
 ---
@@ -11,18 +11,17 @@
 
 **방침**: 배치(`jira-batch-create`) 관련 수정사항을 전부 최상 우선. 단건(`jira-create`) 관련(C-3)은 배치 잔여 정리 후로 유예.
 
-다음 브랜치 후보 (배치 중심, O-9 완료 후):
+다음 브랜치 후보 (배치 중심, O-6 완료 후):
 
-1. **O-6 마커 기준 설계 결정** (`chore/tree-marker-design-decision`) — any-field-user vs summary 기준 확정 + 본문 반영 ← 다음
-2. **O-3 probe 이연** (`refactor/jira-batch-probe-defer`) — 중단/취소 경로 probe 7~10회 절감. hub 수정이지만 배치 실사용에서 드러난 문제
-3. **트리 들여쓰기 규칙 결정** — 절대/상대/소실 3가지 편차 중 하나로 본문 통일
-4. **YAML 스키마 표기법 통일** — placeholder vs 정규식
-5. **Fix 1 매칭 안내 중복 출력 해소** — 1-3 저장 경로
-6. **`chore/build-cleanup-renamed`** — 개명 후 구 디렉토리 자동 청소
-7. **C-2 #11 --yes 승인 재사용** (`feat/jira-batch-reuse-approval`) — 배치 재실행 UX
+1. **O-3 probe 이연** (`refactor/jira-batch-probe-defer`) — 중단/취소 경로 probe 7~10회 절감. hub 수정이지만 배치 실사용에서 드러난 문제 ← 다음
+2. **트리 들여쓰기 규칙 결정** — 절대/상대/소실 3가지 편차 중 하나로 본문 통일
+3. **YAML 스키마 표기법 통일** — placeholder vs 정규식
+4. **Fix 1 매칭 안내 중복 출력 해소** — 1-3 저장 경로
+5. **`chore/build-cleanup-renamed`** — 개명 후 구 디렉토리 자동 청소
+6. **C-2 #11 --yes 승인 재사용** (`feat/jira-batch-reuse-approval`) — 배치 재실행 UX
 
 **이후**:
-8. **C-3 단건 정합화** — 배치 잔여 전부 정리 후 착수
+7. **C-3 단건 정합화** — 배치 잔여 전부 정리 후 착수
 
 누적 push + 전역 배포는 배치 정비 일단락 후 검토.
 
@@ -30,9 +29,12 @@
 
 ## 📊 현재 상태
 
-### 로컬 main 미push 커밋 (origin/main..main, 21건)
+### 로컬 main 미push 커밋 (origin/main..main, 24건)
 
 ```
+9afa4b2  Merge branch 'chore/tree-marker-design-decision'             ← O-6 머지
+2ec7859  chore: 트리 origin 마커 폐기 (O-6 옵션 C 채택)
+87ba62e  docs: O-9 머지 반영 및 O-6 다음 주제로 이동
 f432ce1  Merge branch 'fix/jira-batch-phase-log-enforce'              ← O-9 머지
 f9ef9b4  fix: Phase A/B/C 진행률 메시지 출력 강제 (O-9)
 7c945d0  docs: 후속 작업 우선순위를 배치 관련 전부 최상으로 재정렬
@@ -70,6 +72,7 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 | C-2 #9: customfield scope | ✅ 기해소 | A 브랜치에서 처리 |
 | C-2 #11: --yes 승인 재사용 | ⏸️ 유예 | 설계 규모, 별건 `feat/jira-batch-reuse-approval` |
 | O-9: Phase 로그 생략 재-강제 | ✅ 완료 | 머지 `f432ce1`. 본문에 "출력 지시 (생략 금지)" 가드 추가. 실사용 때 효과 관찰 예정 |
+| O-6: 트리 마커 기준 결정 | ✅ 완료 | 머지 `9afa4b2`. 옵션 C(트리 마커 폐기) 채택. 필드 출처는 (B-1)에서만 확인 |
 
 ### 실 생성 회귀 결과 (2026-04-24)
 
@@ -93,6 +96,7 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - **O-7**: 트리 증거 placeholder literal 누수 → `0a0cbcd`
 - **O-8**: 트리 번호 매김 규칙 미명시 → `c3c13b3`
 - **O-9**: Phase A/B/C 진행률 메시지 생략 → `f9ef9b4` (본문 강화, 실사용 관찰 예정)
+- **O-6**: 트리 마커 기준 모델별 편차 → `2ec7859` (옵션 C 채택, 트리 마커 폐기)
 
 ### 기록만 (수정 불필요)
 
@@ -102,7 +106,6 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 ### 미해결 (후속 브랜치 대상)
 
 - **O-3**: Step 0 customfield probe 낭비 → `refactor/jira-batch-probe-defer`
-- **O-6**: 트리 `👤` 마커 기준의 모델별 해석 차이 (gpt-5.5=summary, gpt-5.4=any-field) — 설계 결정 필요
 - **트리 들여쓰기 규칙 모호**: 본문은 절대(Epic 0 / PBI 2 / Sub-task 4), Codex는 세션에 따라 상대(부모+2) 또는 **0 들여쓰기(완전 소실)** — 3가지 편차
 - **YAML 스키마 표기법 모호**: placeholder(`{title}`) vs 정규식
 - **1-3 저장 후 매칭 안내 중복 출력**
@@ -117,17 +120,16 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 **배치 관련 — 최상 (전부 `jira-batch-create.body.md` 또는 hub 영향)**:
 
-1. **`chore/tree-marker-design-decision`** (O-6) — 🔴 설계 결정 + 본문 반영 ← 다음
-2. **`refactor/jira-batch-probe-defer`** (O-3) — 🔴 설계 규모 큼, hub 수정 + 단건 회귀 필요
-3. **트리 들여쓰기 규칙 결정** — 🟠 절대 / 상대 / 소실 중 하나로 본문 통일
-4. **YAML 스키마 표기법 통일** — 🟠 placeholder vs 정규식
-5. **Fix 1 매칭 안내 중복 출력 해소** — 🟠 1-3 저장 경로
-6. **`chore/build-cleanup-renamed`** — 🟠 `scripts/build-skills.sh`에 개명 후 구 디렉토리 자동 청소
-7. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟡 실사용 검증 필요 (플래그 전달 방식)
+1. **`refactor/jira-batch-probe-defer`** (O-3) — 🔴 설계 규모 큼, hub 수정 + 단건 회귀 필요 ← 다음
+2. **트리 들여쓰기 규칙 결정** — 🟠 절대 / 상대 / 소실 중 하나로 본문 통일
+3. **YAML 스키마 표기법 통일** — 🟠 placeholder vs 정규식
+4. **Fix 1 매칭 안내 중복 출력 해소** — 🟠 1-3 저장 경로
+5. **`chore/build-cleanup-renamed`** — 🟠 `scripts/build-skills.sh`에 개명 후 구 디렉토리 자동 청소
+6. **`feat/jira-batch-reuse-approval`** (C-2 #11) — 🟡 실사용 검증 필요 (플래그 전달 방식)
 
 **단건 관련 — 배치 잔여 후**:
 
-8. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 한국어 Jira 실패 방지. 배치 정비 일단락 후 착수
+7. **`fix/jira-create-align-with-batch`** (C-3) — 🟡 단건 한국어 Jira 실패 방지. 배치 정비 일단락 후 착수
 
 ### C-3. `fix/jira-create-align-with-batch`
 
@@ -135,12 +137,6 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 - [ ] `assignee = currentUser()` 확보 패턴 이식 (Step 2-1)
 - [ ] A(hub)가 공통으로 들어가 있음 — 단건 본문에만 없는 Step 2-X 블록이 대상
 - [ ] 실 회귀: JST 단건 1건 생성 후 삭제
-
-### O-6. `chore/tree-marker-design-decision`
-
-- [ ] 선택: (a) summary origin 유지 / (b) any-field-user 확장 / (c) 트리 마커 폐기
-- [ ] 결정 기록을 본문 주석으로 추가
-- [ ] (b) 선택 시 본문 397행 수정
 
 ### O-3. `refactor/jira-batch-probe-defer`
 
@@ -196,6 +192,7 @@ e220c92  refactor: 미리보기 테이블을 트리 + 요약 축약 출력으로
 
 ## 🗓 완료된 작업 로그 (요약)
 
+- **2026-04-24** O-6 머지 (`9afa4b2`) — 트리 origin 마커 폐기 (옵션 C). 모델별 해석 편차 제거, 구조 요약 기능 선명화. 필드 출처는 (B-1)에서만.
 - **2026-04-24** O-9 머지 (`f432ce1`) — Phase A/B/C 진행률 메시지 출력 강제. 본문에 "출력 지시 (생략 금지)" 가드 추가. 실사용 때 효과 관찰 예정.
 - **2026-04-24** C-2 부분 머지 (`479b430`) — #10 validate_only 강제, #6 parent 문자열 키. 실 JST 5건 회귀 PASS 후 정리.
 - **2026-04-24** O-8 머지 (`224838a`) — 트리 번호 매김 DFS 규칙 본문 명시.
