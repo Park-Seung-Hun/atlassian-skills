@@ -198,33 +198,88 @@ AskUserQuestion으로 "이대로 생성 / 수정" 확인.
 
 다음 순서로 실행한다:
 
-1. **assignee 식별자 획득** — `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")`로 현재 사용자의 식별자를 1회 조회한다. 응답의 `issues[0].assignee` 객체에서 `id` → `email` → `display_name` 우선순위로 1개를 확보하여 `{ASSIGNEE}`에 저장한다. 응답이 비거나 세 필드가 모두 부재하면 **`{ASSIGNEE} = null`로 설정**하고 아래 안내를 1줄 출력한 뒤 진행한다(중단하지 않는다):
+1. **이슈 타입 맵 확보** — Jira 인스턴스 언어가 한국어이면 `Story`가 아닌 `스토리`만 수용하는 식으로 이슈 타입 이름이 로컬라이즈된다. 호출 1이 사용할 **`ISSUE_TYPE_MAP`**을 **Step 6 진입 직후·호출 1 직전**에 정확히 1회 구축한다.
+
+   > **호출 시점 가드**: Step 5 미리보기 단계나 그 이전(Step 1 타입 추론, Step 2 에픽 조회 등)에서 `jira_search(..., fields="issuetype", ...)`를 미리 호출하지 않는다. Step 6 진입 후의 1회 호출만이 ISSUE_TYPE_MAP의 정식 출처다. 사전 조회로 얻은 타입 정보가 있더라도 Step 6에서 재호출해 매핑을 갱신한다(인스턴스 설정 변경 가능성 차단).
+
+   **알고리즘**:
+
+   1. `jira_search(jql="project = {PROJECT_KEY}", fields="issuetype", limit=50)` 실행.
+
+      - **1단계 (이슈가 1건 이상)**: 응답의 `issues[].issue_type.name`을 고유 집합으로 수집 → 2번으로 진행.
+      - **2단계 (issues가 비어 있을 때)**: 아래 후보 이름 리스트로 `jira_batch_create_issues`에 `validate_only=true`로 1회 호출하여 어떤 이름이 검증을 통과하는지 확인한다.
+
+        후보 목록:
+        ```
+        ["Story", "스토리", "Task", "작업", "Bug", "버그", "Spike", "스파이크", "Sub-task", "하위 작업", "Subtask"]
+        ```
+
+        호출 형태:
+        ```
+        jira_batch_create_issues(
+          issues=[
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Story",     "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "스토리",    "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Task",      "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "작업",      "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Bug",       "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "버그",      "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Spike",     "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "스파이크",  "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Sub-task",  "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "하위 작업", "summary": "type-probe"},
+            {"project_key": "{PROJECT_KEY}", "issue_type": "Subtask",   "summary": "type-probe"}
+          ],
+          validate_only=true
+        )
+        ```
+
+        > `validate_only=true`이므로 실제 이슈는 생성되지 않는다. summary "type-probe"는 정리 불필요.
+
+        응답에서 에러 없이 검증 통과한 후보 이름만 수집 → 이 집합을 고유 집합으로 사용해 2번으로 진행. probe 호출이 전체 거절되거나 집합이 비어 있으면 3번의 에러 메시지를 출력하고 중단한다.
+
+   2. 표준 키 → 실제 인스턴스 이름 매핑:
+
+      ```
+      ISSUE_TYPE_MAP = {
+        "Story":    <수집 집합 중 "스토리" 우선, 없으면 "Story">,
+        "Task":     <"작업" 우선, 없으면 "Task">,
+        "Bug":      <"버그" 우선, 없으면 "Bug">,
+        "Spike":    <"스파이크" 우선, 없으면 "Spike">,
+        "Sub-task": <"하위 작업" 우선, 없으면 "Sub-task" 또는 "Subtask">
+      }
+      ```
+
+      > 한국어 이름을 우선하는 이유: 사내 Jira 인스턴스 기본값이 한국어 로컬라이즈.
+
+   3. Step 1에서 선택된 타입(Story/Task/Bug/Spike/Sub-task 중 1개)의 매핑이 비거나 null이면:
+      > "프로젝트 {PROJECT_KEY}에서 {표준 키} 이슈 타입을 찾을 수 없습니다. 프로젝트의 이슈 타입 설정을 확인하세요."
+      출력 후 중단.
+
+   4. Step 1에서 선택되지 않은 표준 키는 매핑 실패해도 무시한다(예: Story만 선택된 흐름에서 Spike 부재).
+
+   **재사용**: 호출 1의 `issue_type` 필드는 `ISSUE_TYPE_MAP[<Step 1 선택>]`을 참조한다. 영문 리터럴(`Story`, `Task` 등)을 직접 쓰지 않는다.
+
+2. **assignee 식별자 획득** — Step 6 진입 후 ISSUE_TYPE_MAP 확보 직후에 `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")`로 현재 사용자의 식별자를 1회 조회한다(이전 Step에서 미리 호출하지 않는다). 응답의 `issues[0].assignee` 객체에서 `id` → `email` → `display_name` 우선순위로 1개를 확보하여 `{ASSIGNEE}`에 저장한다. 응답이 비거나 세 필드가 모두 부재하면 **`{ASSIGNEE} = null`로 설정**하고 아래 안내를 1줄 출력한 뒤 진행한다(중단하지 않는다):
    ```
    ⚠️ 현재 사용자 assignee를 자동 식별할 수 없습니다. unassigned로 생성합니다.
    ```
    > `jira_get_user_profile`의 `user_identifier`는 JQL 함수형 `currentUser()`를 지원하지 않으므로 `jira_search` 단일 시도만 수행한다. `{ASSIGNEE} = null`이면 호출 1 payload의 `assignee` 키 자체를 생략한다(아래 호출 1 참조). MCP의 `jira_create_issue`는 assignee 필드에 `id` / `email` / `display_name` 중 어느 것이든 수용한다. Jira 프로젝트가 "Assignee 필수" 정책이면 호출 1에서 거절될 수 있음에 주의.
-2. 스프린트 배정을 선택한 경우 Step 2에서 조회한 스프린트 ID 사용
-3. 다음 세 단계로 호출한다: ① `jira_create_issue`로 빈 티켓 생성 → ② `jira_update_issue`로 커스텀 필드·parent·timetracking 설정 → ③ `jira_update_issue`로 description만 덮어쓰기.
+3. 스프린트 배정을 선택한 경우 Step 2에서 조회한 스프린트 ID 사용
+4. 다음 세 단계로 호출한다: ① `jira_create_issue`로 빈 티켓 생성 → ② `jira_update_issue`로 커스텀 필드·parent·timetracking 설정 → ③ `jira_update_issue`로 description만 덮어쓰기.
 
    > **이 순서가 필요한 이유**: Jira 자동화 룰이 `parent` 설정 시 description을 빈 템플릿으로 덮어쓴다. description을 마지막(③)에 단독으로 설정하면 자동화 룰 이후에 적용되어 올바른 내용이 유지된다.
 
    **호출 1 — `jira_create_issue` (빈 티켓 생성)**:
    - `project_key`: Step 0에서 로드한 `{PROJECT_KEY}`
-   - `issue_type`: Jira 인스턴스 언어에 맞는 타입명을 사용한다. 불명확하면 `jira_search` 결과의 `issuetype.name`을 참조한다.
-
-     | 선택 | 영문 Jira | 한국어 Jira |
-     |------|----------|------------|
-     | Story | Story | 스토리 |
-     | Task | Task | 작업 |
-     | Bug | Bug | 버그 |
-     | Spike | Spike | 스파이크 |
-     | Sub-task | Sub-task | 하위 작업 |
+   - `issue_type`: 1번에서 확보한 `ISSUE_TYPE_MAP[<Step 1 선택>]`을 그대로 사용한다. 영문 리터럴(`Story`, `Task` 등)을 직접 쓰지 않는다.
    - `summary`: 확정된 요약
    - `description`: **설정하지 않는다** (빈 티켓으로 생성)
-   - `priority`: 선택된 우선순위
-   - `assignee`: 1번에서 확보한 `{ASSIGNEE}` — **`{ASSIGNEE} = null`이면 이 키 자체를 payload에서 생략한다.**
+   - `priority`: 선택된 우선순위. MCP의 `jira_create_issue`는 `priority`를 직접 인자로 받지 않을 수 있으므로 `additional_fields`에 `{"priority": {"name": "{우선순위}"}}` 형태로 포함한다.
+   - `assignee`: 2번에서 확보한 `{ASSIGNEE}` — **`{ASSIGNEE} = null`이면 이 키 자체를 payload에서 생략한다.**
+   - `parent` (**Sub-task 한정**): `additional_fields.parent`에 부모 이슈 키(`{PROJECT_KEY}-NNN` 문자열)를 포함한다. PBI 흐름(Story/Task/Bug/Spike)에서는 호출 1에 parent를 넣지 않는다.
 
-   > **Sub-task 주의**: `parent`를 이 시점에 설정하면 자동화 룰이 즉시 발동하여 이후 호출 2에서 설정할 AC·증거 커스텀 필드까지 초기화할 수 있다. **Sub-task라도 parent는 반드시 호출 2에서 설정한다.**
+   > **Sub-task 주의**: MCP의 `jira_create_issue`는 Sub-task 생성 시 `parent`를 **필수**로 요구한다. 따라서 Sub-task는 호출 1 payload의 `additional_fields`에 parent를 포함해야 한다(이전 가이드는 호출 2 단독 설정을 강제했으나, 회귀에서 호출 1 parent 필수 + 호출 2 customfield 정상 업데이트가 검증돼 정정). 호출 1에서 parent를 설정해 자동화 룰이 발동하더라도, 호출 2에서 AC·증거·SP를 다시 채우면 정상 반영된다. **호출 2에서는 Sub-task의 parent를 다시 설정하지 않는다.** PBI 흐름은 이전과 동일하게 호출 2에서만 parent를 설정한다.
 
    **호출 2 — `jira_update_issue` (커스텀 필드 및 추가 필드 설정)**:
    - `additional_fields`:
@@ -240,7 +295,7 @@ AskUserQuestion으로 "이대로 생성 / 수정" 확인.
    - `{FIELD_SP}`: 스토리 포인트 (PBI만, Sub-task는 생략. FIELD_SP가 (none)이면 이 키 자체를 생략)
    - `{FIELD_AC}`: AC/완료조건 항목을 `\n` 구분 번호 목록으로 작성 (FIELD_AC가 (none)이면 생략)
    - `{FIELD_EV}`: 증거 텍스트 (없으면 생략. FIELD_EV가 (none)이면 이 키 자체를 생략)
-   - `parent`: 선택된 상위항목 key (없으면 생략)
+   - `parent`: **PBI 흐름에서 선택된 상위항목 key.** Sub-task는 호출 1에서 이미 설정됐으므로 이 키를 생략한다. PBI에서 "상위항목 없음"이면 키 자체 생략.
    - `timetracking.originalEstimate`: 입력한 경우만 포함
 
    **호출 3 — `jira_update_issue` (description 단독 설정)** (자동화 룰 덮어쓰기용):
@@ -250,7 +305,8 @@ AskUserQuestion으로 "이대로 생성 / 수정" 확인.
        "description": "## 목적\n{확정된 목적 텍스트}\n\n## 범위\n**포함**\n- ...\n\n**제외**\n- ..."
      }
      ```
-   - **Step 2에서 확정된 목적 텍스트 + 범위(포함/제외)를** Markdown으로 작성한다. AC와 증거는 절대 포함하지 않는다. Step 2 확정 내용을 그대로 사용하며 임의로 생략하거나 재작성하지 않는다.
+   - **PBI 흐름**: Step 2에서 확정된 목적 텍스트 + 범위(포함/제외)를 Markdown으로 작성한다. AC와 증거는 절대 포함하지 않는다. Step 2 확정 내용을 그대로 사용하며 임의로 생략하거나 재작성하지 않는다.
+   - **Sub-task 흐름**: Step 2의 "설명" 항목이 입력된 경우에만 호출 3을 실행하며, description은 입력된 설명 텍스트만 포함한다(PBI의 목적/범위 Markdown 구조를 강제하지 않으며, 부모 이슈의 description을 옮기지 않는다). "설명"이 비어 있으면 호출 3을 스킵한다.
 
    > **참고**: `duedate: null` 설정은 Jira 프로젝트 자동화 룰이 API 호출 이후에 재설정하므로 효과 없음. 기한 자동 설정을 막으려면 Jira 프로젝트 설정 > 자동화에서 룰을 직접 비활성화해야 한다.
 
@@ -293,7 +349,7 @@ URL: [Jira API 응답에서 구성한 URL]
 🔕 Slack 알림이 비활성 상태입니다.            ← SLACK_ID=(none)일 때
                                               (위 세 줄 중 정확히 하나만 출력)
 
-👤 Assignee 자동 식별 실패 — unassigned로 생성됐습니다.   ← Step 6 1번에서 `{ASSIGNEE} = null`이었던 경우만 출력
+👤 Assignee 자동 식별 실패 — unassigned로 생성됐습니다.   ← Step 6 2번에서 `{ASSIGNEE} = null`이었던 경우만 출력
 ```
 
 8pt PBI 생성 시:
