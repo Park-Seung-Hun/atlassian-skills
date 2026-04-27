@@ -198,7 +198,11 @@ AskUserQuestion으로 "이대로 생성 / 수정" 확인.
 
 다음 순서로 실행한다:
 
-1. `jira_search`로 `assignee = currentUser()` 이슈를 조회하여 현재 사용자 email 확인 후 `jira_get_user_profile`로 accountId 획득
+1. **assignee 식별자 획득** — `jira_search(jql="assignee = currentUser()", limit=1, fields="assignee")`로 현재 사용자의 식별자를 1회 조회한다. 응답의 `issues[0].assignee` 객체에서 `id` → `email` → `display_name` 우선순위로 1개를 확보하여 `{ASSIGNEE}`에 저장한다. 응답이 비거나 세 필드가 모두 부재하면 **`{ASSIGNEE} = null`로 설정**하고 아래 안내를 1줄 출력한 뒤 진행한다(중단하지 않는다):
+   ```
+   ⚠️ 현재 사용자 assignee를 자동 식별할 수 없습니다. unassigned로 생성합니다.
+   ```
+   > `jira_get_user_profile`의 `user_identifier`는 JQL 함수형 `currentUser()`를 지원하지 않으므로 `jira_search` 단일 시도만 수행한다. `{ASSIGNEE} = null`이면 호출 1 payload의 `assignee` 키 자체를 생략한다(아래 호출 1 참조). MCP의 `jira_create_issue`는 assignee 필드에 `id` / `email` / `display_name` 중 어느 것이든 수용한다. Jira 프로젝트가 "Assignee 필수" 정책이면 호출 1에서 거절될 수 있음에 주의.
 2. 스프린트 배정을 선택한 경우 Step 2에서 조회한 스프린트 ID 사용
 3. 다음 세 단계로 호출한다: ① `jira_create_issue`로 빈 티켓 생성 → ② `jira_update_issue`로 커스텀 필드·parent·timetracking 설정 → ③ `jira_update_issue`로 description만 덮어쓰기.
 
@@ -218,7 +222,7 @@ AskUserQuestion으로 "이대로 생성 / 수정" 확인.
    - `summary`: 확정된 요약
    - `description`: **설정하지 않는다** (빈 티켓으로 생성)
    - `priority`: 선택된 우선순위
-   - `assignee`: 현재 사용자 email
+   - `assignee`: 1번에서 확보한 `{ASSIGNEE}` — **`{ASSIGNEE} = null`이면 이 키 자체를 payload에서 생략한다.**
 
    > **Sub-task 주의**: `parent`를 이 시점에 설정하면 자동화 룰이 즉시 발동하여 이후 호출 2에서 설정할 AC·증거 커스텀 필드까지 초기화할 수 있다. **Sub-task라도 parent는 반드시 호출 2에서 설정한다.**
 
@@ -288,6 +292,8 @@ URL: [Jira API 응답에서 구성한 URL]
 ⚠️ Slack DM 전송 실패: {에러 요약}          ← Slack 활성이지만 전송 실패 시
 🔕 Slack 알림이 비활성 상태입니다.            ← SLACK_ID=(none)일 때
                                               (위 세 줄 중 정확히 하나만 출력)
+
+👤 Assignee 자동 식별 실패 — unassigned로 생성됐습니다.   ← Step 6 1번에서 `{ASSIGNEE} = null`이었던 경우만 출력
 ```
 
 8pt PBI 생성 시:
