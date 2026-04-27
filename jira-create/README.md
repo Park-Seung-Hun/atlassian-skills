@@ -113,14 +113,16 @@ flowchart TD
     D -- 수정 --> E[수정할 템플릿 선택]
     D -- 삭제 --> F[삭제 후 저장]
     C --> G[샘플 SDD 입력]
-    E --> G
     G --> H[파싱 규칙 자동 생성]
+    E --> H
     H --> I{확인?}
     I -- 수정 --> H
     I -- 저장 --> J[templates.yml 저장]
     F --> K([완료])
     J --> K
 ```
+
+> "수정" 분기는 기존 샘플 없이 규칙만 갱신하므로 샘플 SDD 입력을 거치지 않는다. 신규 추가일 때만 샘플 SDD 입력으로 진입한다.
 
 ### /jira-batch-create 플로우
 
@@ -131,12 +133,15 @@ flowchart TD
     B -- 유효 --> D[설정 로드]
     C & D --> E[Step 1: 문서 입력·파싱]
     E --> F{templates.yml 매칭?}
-    F -- 실패 --> G([템플릿 미등록 오류])
+    F -- 실패 --> G[Step 1-3: 샘플 기반 신규 템플릿 생성]
+    G -- 생성 --> GG[templates.yml 갱신 후 곧바로 파싱]
+    G -- 중단 --> Z2([종료])
     F -- 성공 --> H["Step 2: 자동 보강 (무대화)
     - 2-0 이슈 타입 맵 확보
     - 2-1 assignee 식별자
     - 우선순위·스프린트·증거·AC·SP
     - origin 메타: doc/auto/user"]
+    GG --> H
     H --> I[Step 3: 길이 자동 축약]
     I --> J{"Step 4: 미리보기
     (유일한 게이트)"}
@@ -273,13 +278,18 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 
 SDD(설계 문서) 파싱 규칙을 템플릿으로 정의하고, `jira-sdd-templates.yml`에 등록한다.
 
+> **신규 등록은 `/jira-batch-create` 첫 실행 중 샘플 SDD를 기반으로 자동 처리된다.** `/jira-batch-create`이 입력 문서와 매칭되는 템플릿을 찾지 못하면, 같은 흐름 안에서 그 문서를 샘플로 신규 템플릿을 생성한 뒤 곧바로 파싱·생성으로 이어진다.
+>
+> `/jira-batch-templates`는 **이미 등록된 템플릿을 보정·삭제하거나, SDD 없이 직접 명시 등록·재정의**할 때 쓰는 편집 진입점이다.
+
 ```
 /jira-batch-templates
 ```
 
-1. 샘플 SDD 제공 (파일 경로 또는 붙여넣기)
-2. Claude가 파싱 규칙 자동 생성
-3. 확인 후 저장
+1. 기존 등록된 템플릿 목록 확인 → 추가 / 수정 / 삭제 선택
+2. **추가**: 이름 지정 → 샘플 SDD 입력 → 파싱 규칙 자동 생성 → 저장
+3. **수정**: 템플릿 선택 → (기존 샘플 없이) 규칙 항목 수정 → 저장
+4. **삭제**: 템플릿 선택 → 즉시 삭제
 
 템플릿은 SDD의 구조(헤딩 레벨, 마커, 태그)를 Jira 이슈 타입으로 매핑한다:
 
@@ -313,7 +323,7 @@ SDD(설계 문서) 파싱 규칙을 템플릿으로 정의하고, `jira-sdd-temp
 
 **자동 보강 원칙**:
 - `ISSUE_TYPE_MAP`: 프로젝트 이슈 샘플링으로 Epic/Story/Task/Sub-task 로컬라이즈 이름 1회 캐싱(한국어/영문 인스턴스 자동 대응)
-- **assignee**: `jira_search(assignee = currentUser())` 응답에서 accountId/email/displayName 순으로 확보
+- **assignee**: `jira_search(assignee = currentUser())` 응답에서 `id` / `email` / `display_name` 순으로 확보. 응답이 비면 `{ASSIGNEE} = null`로 두고 모든 Phase의 payload에서 `assignee` 키를 생략(unassigned fallback)
 - 필드 출처(`origin`) 메타: `doc` / `auto` / `user` — 미리보기에서 🤖/👤 마커로 표시, **Jira payload에는 포함하지 않음** (Step 5-0에서 strip 검증)
 
 **Phase 호출 체인** (세 Phase 모두 3단계 구조 통일):
