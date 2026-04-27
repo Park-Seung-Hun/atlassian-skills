@@ -12,7 +12,7 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 - [사전 준비](#사전-준비)
 - [설치](#설치)
 - [워크플로우](#워크플로우)
-  - [프로젝트 설정](#프로젝트-설정)
+  - [초기 설정 (자동 수집)](#초기-설정-자동-수집)
   - [이슈 생성](#이슈-생성)
   - [SDD 템플릿 시스템](#sdd-템플릿-시스템)
   - [일괄 생성](#일괄-생성)
@@ -25,25 +25,26 @@ Story (스토리) / Task (작업) / Bug (버그) / Spike (스파이크) / Sub-ta
 
 | 파일 | 커맨드 | 용도 |
 |------|--------|------|
-| `jira-create-setup.md` | `/jira-create-setup` | 프로젝트 설정 (초기 및 재설정) |
-| `jira-create.md` | `/jira-create` | 이슈 생성 |
+| `jira-create.md` | `/jira-create` | 이슈 생성 (config 자동 수집·재설정 진입점 겸함) |
 | `jira-batch-templates.md` | `/jira-batch-templates` | SDD 파싱 템플릿 관리 (편집 진입점) |
 | `jira-batch-create.md` | `/jira-batch-create` | SDD 기반 이슈 일괄 생성 |
+
+> 별도의 setup 진입점은 두지 않는다. `/jira-create` 또는 `/jira-batch-create` 첫 실행 시 hub의 `0-1` 인라인 fallback이 프로젝트 키·보드·커스텀 필드·Slack·기본값을 자동 수집해 config 파일을 생성한다. 재설정은 `0-0c` 슬롯별 수정 흐름에서 수행한다.
 
 ---
 
 ## 플로우
 
-> `/jira-create-setup`의 단계는 [프로젝트 설정](#프로젝트-설정) 섹션의 단계별 설명을 참조한다 (다이어그램은 본문 설명과 중복되어 생략).
+> 초기 설정 다이어그램은 따로 두지 않는다. `/jira-create` 첫 실행이 곧 setup이며, 그 흐름은 [초기 설정 (자동 수집)](#초기-설정-자동-수집) 섹션의 단계별 설명을 참조한다.
 
 ### /jira-create
 
 ```mermaid
 flowchart TD
     A(["/jira-create"]) --> B{config.md?}
-    B -- 없음·YOUR_ --> C["인라인 수집
+    B -- 없음·YOUR_ --> C["인라인 자동 수집
     프로젝트 키·보드·필드
-    Slack ID=(none) 고정"]
+    Slack ID·기본 우선순위·증거"]
     B -- 유효 --> D{"$ARGUMENTS에
     프로젝트 키?"}
     D -- 예: 오버라이드 --> E[보드·필드 재탐색\nSlack ID 유지]
@@ -178,31 +179,32 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 
 | 환경 | 배포 경로 |
 |------|---------|
-| Claude Code | `~/.claude/commands/{jira-create,jira-create-setup,jira-batch-create,jira-batch-templates}.md` |
-| Codex | `~/.agents/skills/{jira-create,jira-create-setup,jira-batch-create,jira-batch-templates}/SKILL.md` |
+| Claude Code | `~/.claude/commands/{jira-create,jira-batch-create,jira-batch-templates}.md` |
+| Codex | `~/.agents/skills/{jira-create,jira-batch-create,jira-batch-templates}/SKILL.md` |
 
-스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create-setup`으로 각각 설정한다.
+스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create`를 처음 실행하면 자동으로 그 환경의 config가 생성된다.
 
-> 같은 config 파일은 `sprint/` 스킬 묶음(`/sprint-bootstrap`, `/sprint-sync`, `/sprint-close`)도 공유한다. Notion 동기화를 함께 쓰려면 `/jira-create-setup` 다음에 `/sprint-setup`을 실행해 `## Notion` 섹션을 채워라.
+> 같은 config 파일은 `sprint/` 스킬 묶음(`/sprint-bootstrap`, `/sprint-sync`, `/sprint-close`)도 공유한다. Notion 동기화를 함께 쓰려면 `/jira-create` 첫 실행으로 Jira 섹션을 채운 뒤 `/sprint-setup`을 실행해 `## Notion` 섹션을 채워라.
 
 ---
 
 ## 워크플로우
 
-### 프로젝트 설정
+### 초기 설정 (자동 수집)
+
+별도 setup 명령은 없다. `/jira-create`(또는 `/jira-batch-create`)를 처음 실행하면 hub의 `0-1` 인라인 fallback이 자동으로 모든 슬롯을 수집한 뒤 config 파일을 생성한다.
 
 ```
-/jira-create-setup [선택: 프로젝트 키]
-예) /jira-create-setup TCI
+/jira-create [선택: 작업 설명]
 ```
 
-에이전트가 순서대로 진행한다:
+config 파일이 없거나 값이 `YOUR_`로 시작하면 다음 순서로 진행한다:
 
-1. **기존 설정 확인** -- 환경에 맞는 설정 파일이 있으면 재설정 여부 확인
-2. **프로젝트 키** -- `$ARGUMENTS`에 없으면 직접 입력 요청
-3. **보드 탐색** -- `jira_get_agile_boards`로 보드 목록 조회 후 선택
-4. **커스텀 필드 탐색** -- `jira_search_fields`로 스토리 포인트 / AC / 증거 필드 자동 매핑
-5. **Slack 알림 설정** -- 사용 여부 확인 후 사용 시 표시 이름으로 ID 자동 조회
+1. **프로젝트 키 입력** -- `$ARGUMENTS`에 알파벳 2~10자가 있으면 그것을, 없으면 입력 요청
+2. **보드 탐색** -- `jira_get_agile_boards`로 보드 목록 조회 (1개면 자동 확정, 2~4개 선택 UI, 5개 이상 이름 일부 입력으로 필터)
+3. **커스텀 필드 자동 매핑** -- `jira_search_fields`로 스토리 포인트 / AC / 증거 필드를 키워드로 찾고 scope 필터(현재 프로젝트 전용 또는 글로벌만 후보) 적용. "사용 안 함" 선택 시 해당 슬롯 `(none)`
+4. **Slack 알림 설정** -- 사용 여부 확인 → 사용 시 표시 이름 입력으로 `slack_get_users` 자동 변환 → 매칭 실패 시 멤버 ID 직접 입력. "사용 안 함" 시 `(none)`
+5. **기본 우선순위 / 기본 증거 형태** -- 추천값 포함 단일 선택. "설정 안 함" 시 `(none)` (본문 fallback `Medium` / `PR 링크` 사용)
 6. **설정 파일 저장** -- Claude: `~/.claude/sprint-workflow-config.md`, Codex: `~/.agents/sprint-workflow-config.md`
 
 설정 결과 예시:
@@ -213,6 +215,8 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 스토리 포인트 필드: customfield_10016
 AC 필드: customfield_11576
 증거 필드: (none)
+기본 우선순위: Medium
+기본 증거 형태: PR 링크
 
 ## 알림
 Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
@@ -221,7 +225,13 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 > 설정 파일(`sprint-workflow-config.md`)은 개인 정보를 포함한다. **절대 git에 커밋하지 말 것.**
 > `.gitignore`에 해당 파일 경로를 추가하라.
 
-기존 설정이 있으면 재설정 여부를 확인한 뒤 덮어쓴다. 프로젝트가 바뀌거나 필드 ID가 변경된 경우에도 동일하게 실행하면 된다.
+#### 재설정 / 부분 수정
+
+기존 설정이 이미 있으면 매 호출 시 hub `0-0b`가 현재 설정을 보여주고 "그대로 진행 / 항목 수정"을 묻는다. "항목 수정" 선택 시 `0-0c`로 진입해 슬롯 단위 수정 가능 (프로젝트·보드, SP/AC/EV 필드, Slack, 기본값 등). 프로젝트가 바뀌거나 필드 ID가 변경됐을 때도 같은 흐름으로 처리한다.
+
+#### 1회성 다른 프로젝트 사용
+
+config를 바꾸지 않고 한 번만 다른 프로젝트로 생성하려면 인수에 키를 같이 넘긴다 (`/jira-create MYPROJ`). 자세한 동작은 [특정 이슈만 다른 프로젝트로 생성할 때](#특정-이슈만-다른-프로젝트로-생성할-때) 섹션 참조.
 
 ---
 
@@ -248,7 +258,7 @@ Slack 사용자 ID: U12345678   # (none)이면 Slack 알림 비활성
 
 #### config 미설정 시 동작
 
-설정 파일(`sprint-workflow-config.md`)이 없거나 값이 `YOUR_`로 시작하면, `/jira-create-setup` 없이도 Step 0에서 인라인으로 설정을 수집한다. 단, 수집한 값은 config.md에 저장되지 않으므로 매번 수집된다. 지속 사용 시 `/jira-create-setup`을 먼저 실행하는 것을 권장한다.
+설정 파일(`sprint-workflow-config.md`)이 없거나 값이 `YOUR_`로 시작하면, Step 0의 `0-1` 인라인 fallback이 자동으로 모든 슬롯을 수집해 config 파일을 **신규 작성**한다. 다음 실행부터는 `0-0` config 로드 경로로 진입하며 매번 묻지 않는다. 자세한 단계는 [초기 설정 (자동 수집)](#초기-설정-자동-수집) 참조.
 
 ---
 

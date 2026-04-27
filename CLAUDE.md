@@ -26,7 +26,7 @@ Atlassian(Jira/Confluence) 워크플로우 중심의 Claude Code / Codex CLI 스
 └── <name>.codex.yml     # Codex Agent Skill 프론트매터
 ```
 
-한 도메인 폴더에 여러 스킬을 묶을 수 있다 (예: `jira-create/`에 `jira-create`와 `jira-create-setup` 공존).
+한 도메인 폴더에 여러 스킬을 묶을 수 있다 (예: `jira-create/`에 `jira-create`, `jira-batch-create`, `jira-batch-templates` 공존).
 
 도메인 폴더에는 `README.md`로 스킬 설계 의도를 기록한다(선택).
 

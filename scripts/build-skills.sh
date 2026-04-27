@@ -9,7 +9,6 @@ SKILLS=(
   "confluence-fetch:confluence-fetch:"
   "confluence-write:confluence-write:"
   "jira-create:jira-create:jira-create-hub"
-  "jira-create-setup:jira-create:"
   "jira-batch-create:jira-create:jira-create-hub"
   "jira-batch-templates:jira-create:"
 )

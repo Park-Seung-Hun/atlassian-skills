@@ -28,7 +28,7 @@ bash scripts/build-skills.sh --target codex
 
 # 특정 스킬만 (쉼표 구분)
 bash scripts/build-skills.sh --skill jira-batch-create
-bash scripts/build-skills.sh --skill jira-create,jira-create-setup
+bash scripts/build-skills.sh --skill jira-create,jira-batch-create
 
 # 프로젝트 scope (테스트용)
 bash scripts/build-skills.sh --scope project --project-dir <path>
@@ -59,7 +59,7 @@ Codex는 세션 실행 시 현재 작업 디렉토리에서 저장소 루트까�
 ```bash
 SKILLS=(
   "jira-create:jira-create:jira-create-hub"        # jira-create-hub.body.md를 prepend
-  "jira-create-setup:jira-create:"                 # hub 없음
+  "jira-batch-templates:jira-create:"              # hub 없음
 )
 ```
 
