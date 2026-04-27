@@ -2,7 +2,7 @@
 
 **갱신**: 2026-04-27 · P 시리즈(P1 / P2+P3+P5 / P0) + C-3·S5 + jira-create-setup 폐기(hub 0-1 흡수) 머지 완료. 후속 1주기 종료.
 **브랜치**: `main` (작업 깨끗). P 머지 산출물 브랜치 + C-3 브랜치 + setup 폐기 브랜치(`refactor/jira-create-setup-absorb-to-hub`)는 머지 완료 상태로 로컬 보존.
-**main 동기화**: `origin/main`(`d49384c`)보다 **14커밋 앞섬** = P 시리즈 6 + C-3 2 + setup 폐기 2(머지 1 + refactor 1) + HANDOFF docs 2(P, C-3 직커밋 — 이전 관습) + setup 폐기 HANDOFF docs 2(머지 1 + 직커밋 1 — `docs/handoff-setup-deprecation` 브랜치 경유).
+**main 동기화**: `origin/main`(`d49384c`)보다 앞선 상태. 정확한 미push 커밋 수는 `git rev-list --count origin/main..main`으로 확인. 누적 변경 — P 시리즈 6 + C-3 2 + setup 폐기 2(`refactor/jira-create-setup-absorb-to-hub`) + HANDOFF docs 다수(P/C-3는 main 직커밋, setup 폐기 이후로는 `docs/handoff-*` 브랜치 경유 머지).
 **배포 방침**: 사용자 방침 — **"한번에 배포"**. push/전역 배포는 다음 브랜치까지 누적 후 한 번에.
 
 ---
@@ -30,7 +30,7 @@
 
 ## 📊 현재 상태
 
-### 로컬 main 미push 커밋 (origin/main..main, 14건)
+### 로컬 main 미push 커밋 (origin/main..main)
 
 setup 폐기(2026-04-27, hub 0-1 흡수) — 2커밋:
 
