@@ -108,10 +108,10 @@ AskUserQuestion (**복수 선택**):
 로드된 customfield 키가 현재 Jira 인스턴스에서 실제 조회 가능한지 1회 검증한다.
 
 **probe**:
-- `jira_search_fields`를 **`keyword` 인자 없이(또는 빈 문자열)** `limit: 200`으로 **정확히 1회**만 호출하여 customfield 전체 목록을 얻는다.
-  - 이 호출을 customfield 키별로 분할하거나(`keyword="customfield_XXXXX"`), 카테고리별로 나누거나(`keyword="acceptance criteria"`, `keyword="evidence"` 등), 응답이 잘려 보인다고 재시도하는 것을 **금지**한다.
-  - 응답이 길어 절단된 것으로 보여도 판정에 필요한 건 `id` 일치와 `scope` 확인뿐이며, `limit: 200`이면 통상 Jira 인스턴스의 customfield 전량을 포함한다. 검증용 호출에서 추가 탐색·교차 확인을 수행하지 않는다.
-- `(none)`으로 설정된 슬롯은 검증 대상에서 제외한다. 모든 슬롯이 `(none)`이면 probe 자체를 수행하지 않고 즉시 `통과` 반환.
+- config의 FIELD_SP / FIELD_AC / FIELD_EV 각 customfield 키를 `jira_search_fields`의 `keyword` 인자로 **슬롯별 호출**한다 (예: `jira_search_fields({keyword: "customfield_10026", limit: 5})`). `(none)`으로 설정된 슬롯은 호출 대상에서 제외하므로 최대 3회 호출. 모든 슬롯이 `(none)`이면 probe 자체를 수행하지 않고 즉시 `통과` 반환.
+  - 인스턴스 customfield 수가 많은 환경에서 `keyword=""` + `limit:200` 식의 전역 호출은 응답 절단으로 글로벌 필드가 누락될 수 있어 사용하지 않는다.
+  - 응답이 0건이거나 응답에 `id == {슬롯 키}`인 항목이 없으면 해당 슬롯은 **실패 (미존재)**로 판정한다.
+  - 동일 키로 재호출하거나 limit을 키워가며 재시도하는 것을 금지한다.
 - config의 FIELD_SP / FIELD_AC / FIELD_EV 각 값에 대해 아래 순서로 판정한다:
   1. `id` 필드가 일치하는 항목을 찾는다. 없으면 **실패 (미존재)**.
   2. 해당 항목의 `scope` 필드를 확인:
@@ -206,15 +206,19 @@ config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우, 또는
 
 #### 0-1-SP — FIELD_SP 슬롯 매칭
 
-이 서브루틴을 단독 호출하는 경우 `jira_search_fields`를 **`keyword` 인자 없이(또는 빈 문자열) `limit: 200`으로 정확히 1회**만 호출하여 customfield 전체 목록을 캐시한다. 같은 fallback 내에서 여러 슬롯(SP/AC/EV)을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+이 서브루틴은 `jira_search_fields`를 FIELD_SP 슬롯의 키워드로 호출한다. 아래 매칭 표의 키워드 중 하나를 `keyword` 인자로 사용한다 (예: `jira_search_fields({keyword: "story point", limit: 50})`). 같은 fallback 내에서 AC/EV 슬롯으로 진행할 때는 각각 새 키워드로 다시 호출한다 (응답 캐시 공유 없음).
 
-> **[필수] 분할 호출 금지**: 슬롯별 키워드(`keyword="story point"`, `keyword="acceptance"`, `keyword="evidence"`, `keyword="인수 기준"`, `keyword="완료 조건"` 등)로 `jira_search_fields`를 분할 호출하는 것을 **금지**한다. 카테고리별로 나누거나 응답이 잘려 보인다고 재시도하는 것도 금지. `limit: 200`이면 통상 인스턴스의 customfield 전량을 포함하며, 키워드 매칭은 응답을 메모리에서 필터한다.
+> **[필수] 슬롯별 키워드 호출**: SP/AC/EV는 슬롯마다 독립적인 `jira_search_fields` 호출을 사용한다. `keyword=""` + `limit:200` 식의 전역 호출은 인스턴스 customfield 수가 많을 때 응답 절단으로 글로벌 SP 필드(`Story Points`, `Story point estimate` 등)가 누락될 수 있어 사용하지 않는다. 동일 슬롯 안에서 응답이 잘려 보인다고 limit을 키워가며 재시도하는 것은 금지(`limit: 50` 정도면 슬롯별 fuzzy 매칭은 충분).
+
+**응답 스키마**: `jira_search_fields` 응답 배열의 각 항목은 `id`, `name`, `schema.type`을 포함하며, project 전용 customfield인 경우 `scope.type == "PROJECT"`와 `scope.project.id`도 함께 들어 있다. `scope` 키 자체가 없으면 글로벌 필드.
+
+**응답 처리 순서** (받은 직후):
+1. **scope 필터 적용** — 아래 "[필수] customfield 후보 scope 필터" 절의 규칙에 따라 글로벌 필드(`scope` 없음) + 현재 PROJECT_ID와 일치하는 project-scope 필드만 남긴다. 다른 프로젝트 소유 필드는 사용자에게 절대 노출하지 않는다.
+2. **매칭 수 분기** — 필터 후 남은 항목 수를 기준으로 아래 슬롯 매핑을 적용한다.
 
 **0-0c 재진입 또는 0-0a 재지정 진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료. 이 질문은 생략할 수 없다.
 
-`jira_search_fields` 결과에서 `customfield_`로 시작하는 필드를 대상으로 아래 키워드 매칭을 적용한다(대소문자 무시).
-
-**슬롯별 키워드 매칭 기준**
+**슬롯별 키워드 매칭 기준** (이 표의 키워드 중 하나를 `jira_search_fields(keyword=...)` 인자로 사용. 슬롯당 1회 호출.)
 
 | 슬롯 | 키워드 |
 |------|--------|
@@ -222,7 +226,7 @@ config 파일이 없거나 PROJECT_KEY가 `YOUR_`로 시작하는 경우, 또는
 | FIELD_AC (AC/완료조건) | acceptance, acceptance criteria, AC, 완료 조건, 완료조건, 인수 기준, 인수기준 |
 | FIELD_EV (증거) | evidence, proof, 증거, 근거 |
 
-FIELD_SP 슬롯 매핑:
+FIELD_SP 슬롯 매핑 (scope 필터 통과 후 후보 수 기준):
 - **매칭 1개**: "스토리 포인트 필드로 `{필드명} ({필드 키})`을 사용하시겠습니까?" 확인 후 사용.
 - **매칭 0개 / 2개 이상**: AskUserQuestion 선택 UI 제시 (상위 3개 후보 + `사용 안 함` + `직접 입력`).
   - `사용 안 함` 선택: 해당 슬롯을 `(none)`으로 설정 → 관련 수집 Step 스킵.
@@ -230,19 +234,19 @@ FIELD_SP 슬롯 매핑:
 
 #### 0-1-AC — FIELD_AC 슬롯 매칭
 
-이 서브루틴을 단독 호출하는 경우 `jira_search_fields` 결과를 1회 조회하여 캐시한다. 같은 fallback 내에서 여러 슬롯을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+이 서브루틴은 `jira_search_fields`를 FIELD_AC 슬롯의 키워드로 호출한다 (예: `keyword: "acceptance"`, `keyword: "인수 기준"`). 응답을 받은 직후 0-1-SP와 동일하게 ① scope 필터 → ② 매칭 수 분기 순서로 처리한다.
 
 **0-0c 재진입 또는 0-0a 재지정 진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료. 이 질문은 생략할 수 없다.
 
-0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_AC 행을 동일 규칙으로 적용하여 슬롯을 매핑한다. 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리도 0-1-SP와 동일하다.
+0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_AC 행의 키워드를 사용하고, 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리는 0-1-SP와 동일하게 적용한다.
 
 #### 0-1-EV — FIELD_EV 슬롯 매칭
 
-이 서브루틴을 단독 호출하는 경우 `jira_search_fields` 결과를 1회 조회하여 캐시한다. 같은 fallback 내에서 여러 슬롯을 순차 호출할 때는 앞서 조회한 결과를 재사용한다.
+이 서브루틴은 `jira_search_fields`를 FIELD_EV 슬롯의 키워드로 호출한다 (예: `keyword: "evidence"`, `keyword: "증거"`). 응답을 받은 직후 0-1-SP와 동일하게 ① scope 필터 → ② 매칭 수 분기 순서로 처리한다.
 
 **0-0c 재진입 또는 0-0a 재지정 진입 시 표시**: 현재 값이 있으면 `현재 값: {customfield_xxxxx}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료. 이 질문은 생략할 수 없다.
 
-0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_EV 행을 동일 규칙으로 적용하여 슬롯을 매핑한다. 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리도 0-1-SP와 동일하다.
+0-1-SP의 슬롯별 키워드 매칭 기준 표에서 FIELD_EV 행의 키워드를 사용하고, 매칭 수 분기(1개/0개·2개 이상)와 `사용 안 함`/`직접 입력` 처리는 0-1-SP와 동일하게 적용한다.
 
 config 로드 모드에서는 본문 스킬이 생성 직전에 `0-0a` 서브루틴을 호출하여 customfield 키 존재 여부를 1회 검증한다. 보드 재조회는 수행하지 않는다.
 
