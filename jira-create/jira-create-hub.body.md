@@ -33,8 +33,6 @@ config 로드 경로인 경우 본문 스킬이 Jira 생성 직전에 `0-0a` 서
 - **FIELD_SP**: `스토리 포인트 필드` 항목 (`(none)`이면 스토리 포인트 수집 Step 스킵)
 - **FIELD_AC**: `AC 필드` 항목 (`(none)`이면 AC 수집 Step 스킵)
 - **FIELD_EV**: `증거 필드` 항목 (`(none)`이면 증거 수집 Step 스킵)
-- **DEFAULT_PRIORITY**: `기본 우선순위` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
-- **DEFAULT_EVIDENCE**: `기본 증거 형태` 항목 (없거나 `(none)`이면 스킬별 fallback 사용)
 - **SLACK_ID**: `Slack 사용자 ID` 항목 (`(none)`이면 Slack 알림 Step 스킵)
 
 로드 후 **PROJECT_ID 확보 + PROJECT_KEY_MAP 캐시**(세션 캐시용) — `jira_get_all_projects()`를 호출하여 다음을 한 번에 추출한다:
@@ -62,8 +60,6 @@ config 로드 경로인 경우 본문 스킬이 Jira 생성 직전에 `0-0a` 서
 - 스토리 포인트 필드: {FIELD_SP}
 - AC 필드           : {FIELD_AC}
 - 증거 필드         : {FIELD_EV}
-- 기본 우선순위     : {DEFAULT_PRIORITY}
-- 기본 증거 형태    : {DEFAULT_EVIDENCE}
 - Slack 사용자 ID   : {SLACK_ID}
 ```
 
@@ -83,14 +79,13 @@ AskUserQuestion (**복수 선택**):
 - AC 필드 (FIELD_AC) → **0-1-AC** 재실행
 - 증거 필드 (FIELD_EV) → **0-1-EV** 재실행
 - Slack 사용자 ID → **0-1-SLACK** 재실행 (표시명 자동 변환 또는 직접 ID 입력. `(none)` 선택 시 알림 비활성화)
-- 기본 우선순위 / 기본 증거 형태 → **0-1-DEFAULTS** 재실행 (개별 항목만 다시 묻고 싶더라도 두 슬롯을 함께 재수집한다. 이전 값 유지를 원하면 해당 슬롯에서 동일 값을 다시 선택)
 
 선택된 항목을 순차적으로 수집한 뒤 `{{CONFIG_PATH}}` 갱신.
 
 **config 갱신 로직**:
 1. `{{CONFIG_PATH}}`를 Read로 로드 (전체 내용).
 2. 저장 포맷은 `라벨: 값` 라인 단위. 각 항목의 라벨은 아래와 같이 고정(이 라벨이 바뀌면 0-1-SAVE의 신규 작성 흐름과 sprint 계열 스킬의 incremental 갱신 사이 호환성이 깨진다):
-   - `프로젝트 키:`, `보드 ID:`, `스토리 포인트 필드:`, `AC 필드:`, `증거 필드:`, `기본 우선순위:`, `기본 증거 형태:`, `Slack 사용자 ID:`
+   - `프로젝트 키:`, `보드 ID:`, `스토리 포인트 필드:`, `AC 필드:`, `증거 필드:`, `Slack 사용자 ID:`
 3. 수정된 슬롯에 해당하는 **라인만** 새 값으로 교체. 다른 라인과 파일 내 다른 섹션은 건드리지 않는다.
 4. Write로 전체 파일을 덮어쓴다.
 5. "`{{CONFIG_PATH}}`를 갱신했습니다." 안내 출력.
@@ -163,13 +158,14 @@ AskUserQuestion (단일 선택):
 
 ### 0-1. 인라인 수집 서브루틴
 
-아래 여섯 개 서브섹션은 독립적으로 호출 가능하다. config 미설정 fallback에서는 0-1-PROJECT → 0-1-SP → 0-1-AC → 0-1-EV → 0-1-SLACK → 0-1-DEFAULTS 순차 호출 후 반드시 **0-1-SAVE**로 `{{CONFIG_PATH}}`를 신규 작성한다. 0-0c/0-0a 재지정 분기는 해당 슬롯 서브섹션만 호출하며, 저장은 0-0c의 갱신 로직이 담당한다.
+아래 다섯 개 서브섹션은 독립적으로 호출 가능하다. config 미설정 fallback에서는 0-1-PROJECT → 0-1-SP → 0-1-AC → 0-1-EV → 0-1-SLACK 순차 호출 후 반드시 **0-1-SAVE**로 `{{CONFIG_PATH}}`를 신규 작성한다. 0-0c/0-0a 재지정 분기는 해당 슬롯 서브섹션만 호출하며, 저장은 0-0c의 갱신 로직이 담당한다.
 
-> **[필수] 6단계 분리 호출 강제 (단축 금지)**
+> **[필수] 5단계 분리 호출 강제 (단축 금지)**
 >
-> - 0-1 fallback에 진입하면 **6개 서브섹션을 반드시 별도 단계로 분리** 실행한다(PROJECT → SP → AC → EV → SLACK → DEFAULTS). 한 화면에 "보드 / SP / AC / EV / 우선순위 / 증거 형태 / Slack" 등 여러 슬롯 후보를 묶어 한 번에 묻고 사용자 응답을 합쳐 받는 단축 흐름을 **금지**한다. 묶음 미리보기로 단계를 점프하면 슬롯별 확인 질문(0-1-SP/AC/EV의 매칭 1개 확인, 0-1-SLACK 사용 여부, 0-1-DEFAULTS 두 슬롯)이 누락된다.
-> - 0-1-DEFAULTS와 0-1-SLACK은 **모델이 자체 추정으로 채워서 건너뛰는 것을 금지**한다. 두 서브섹션 모두 사용자 응답 없이 진입을 마칠 수 없다. 사용자가 "Slack 비활성화"라고 선언했더라도 0-1-SLACK 1단계 질문(사용 여부)은 출력하고 응답을 받아 분기한다 — 그 응답이 곧 "사용 안 함" 선택지에 매핑된다.
+> - 0-1 fallback에 진입하면 **5개 서브섹션을 반드시 별도 단계로 분리** 실행한다(PROJECT → SP → AC → EV → SLACK). 한 화면에 "보드 / SP / AC / EV / Slack" 등 여러 슬롯 후보를 묶어 한 번에 묻고 사용자 응답을 합쳐 받는 단축 흐름을 **금지**한다. 묶음 미리보기로 단계를 점프하면 슬롯별 확인 질문(0-1-SP/AC/EV의 매칭 1개 확인, 0-1-SLACK 사용 여부)이 누락된다.
+> - 0-1-SLACK은 **모델이 자체 추정으로 채워서 건너뛰는 것을 금지**한다. 사용자가 "Slack 비활성화"라고 선언했더라도 1단계 질문(사용 여부)은 출력하고 응답을 받아 분기한다 — 그 응답이 곧 "사용 안 함" 선택지에 매핑된다.
 > - 첫 슬롯에서 사용자가 가치를 미리 알려줬어도 그 슬롯의 확인 질문은 건너뛰지 않는다.
+> - 우선순위 / 증거 형태는 **사용자에게 묻지 않는다**. 이슈 생성 시점의 task별 자동 추론으로 결정한다 (아래 "[필수] 우선순위 추론 규칙" / "[필수] 증거 형태 추론 규칙" 참조).
 
 > **[필수] 사용자 확인 강제 (역추정 자동 채택 금지)**
 >
@@ -274,35 +270,40 @@ config 로드 모드에서는 본문 스킬이 생성 직전에 `0-0a` 서브루
      - AskUserQuestion: "Slack member ID를 직접 입력하세요. (예: U01ABCDEFGH, 비활성화하려면 `(none)` 입력)"
      - 빈 값이거나 `(none)` 입력 시 SLACK_ID = `(none)`.
 
-#### 0-1-DEFAULTS — 기본 우선순위 + 기본 증거 형태 수집
+#### 0-1 우선순위 / 증거 형태는 입력받지 않음
 
-> **[필수] 자동 추정 채택 금지**: 모델이 `Medium` / `PR 링크` 등 추천값을 추정해 사용자 응답 없이 채택·저장하는 것을 **금지**한다. 두 슬롯 모두 AskUserQuestion으로 사용자 응답을 받아야 진입을 마친다. 사용자가 "그대로 진행"이라고 답한 경우에도 그 응답은 0-0b의 "현재 설정 확인" 응답으로만 해석되며, 0-1-DEFAULTS 진입 시점에는 별도의 두 단계 질문이 필요하다.
+우선순위(`priority`)와 증거 형태(`evidence`)는 **사용자에게 별도 질문으로 묻지 않는다**. 이슈 생성 시점에 본문 스킬이 task별로 자동 추론한다. 추론 규칙은 tmaxsoft Confluence "Definition of Done"(`tmaxsoft.atlassian.net/wiki/spaces/TCI/pages/1893335041`)과 "Jira 작성 규칙"(`tmaxsoft.atlassian.net/wiki/spaces/TCI/pages/1893138492`)을 본문에 박아 적용한다.
 
-**0-0c 재진입 시 표시**: 현재 값이 있으면 `현재 값: 기본 우선순위={DEFAULT_PRIORITY}, 기본 증거 형태={DEFAULT_EVIDENCE}. 재수집하시겠습니까? [예/아니오]`를 먼저 묻고, "아니오"면 해당 슬롯을 건드리지 않고 종료.
+> **[필수] 우선순위 추론 규칙** (단건/배치 공통, 호출 측 본문에서 적용)
+>
+> 폴백 체인을 첫 성공까지 순차 시도:
+>
+> 1. spec-kit task의 `[US?]` 라벨 + 부모 Phase 헤더의 `(Priority: P1/P2/P3)` 또는 본문 내 동등 표기 → **P1=High / P2=Medium / P3=Low**
+> 2. (1) 미명시 → **부모 PBI 또는 epic의 우선순위 상속** (배치에서 epic을 먼저 만들고 자식이 상속받는 흐름)
+> 3. (2) 미명시 → **`Medium`** fallback
+>
+> 사용자가 명시적으로 우선순위를 입력한 경우(예: `/jira-create` 단건 흐름의 사용자 입력 / `/jira-batch-create`의 "수정 N field=value" 단계)는 그 값이 위 추론 결과를 덮어쓴다.
 
-##### 1. 기본 우선순위
-
-`jira-batch-create` 자동 보강·`jira-create` 미리보기 추천에 사용한다. 미설정 시 본문 스킬이 fallback `Medium`을 사용한다.
-
-AskUserQuestion (단일 선택):
-> "Jira 이슈 생성 시 기본 우선순위를 선택하세요."
-- Highest / High / **Medium (추천)** / Low / 설정 안 함
-
-"설정 안 함" 선택 시 DEFAULT_PRIORITY = `(none)`.
-
-##### 2. 기본 증거 형태 (PBI/Sub-task)
-
-`jira-batch-create` 자동 보강에 사용한다. 미설정 시 본문 스킬이 fallback `PR 링크`(PBI/Sub-task) / `배포 URL`(Epic)을 사용한다.
-
-AskUserQuestion (단일 선택):
-> "PBI/Sub-task의 기본 증거 형태를 선택하세요."
-- **PR 링크 (추천)** / Confluence 문서 링크 / 스크린샷·로그 / 설정 안 함
-
-"설정 안 함" 선택 시 DEFAULT_EVIDENCE = `(none)`.
+> **[필수] 증거 형태 추론 규칙** (단건/배치 공통, PBI/Sub-task에 적용. Epic은 별도)
+>
+> task의 description / 파일 경로 / 키워드를 다음 표로 매칭:
+>
+> | task 신호 | 증거 형태 |
+> |---|---|
+> | `*Test.java`, `*IT.java`, `./gradlew test`, 단위·통합 테스트 | **PR 링크** |
+> | `*.md`(quickstart, README, plan, spec) | **Confluence 문서 링크** |
+> | `*.html`/`*.css`, UI 템플릿, 수동 시연 | **스크린샷·로그** |
+> | `application.yml`, `build.gradle.kts`, env 설정 | **PR 링크** |
+> | 회귀 검증, 비교 (예: "동일 필드 셋 검증") | **비교표** 또는 **로그** |
+> | 그 외 / 모호 | **(none)** |
+>
+> Sub-task의 증거는 필요 시만 부여. 모호하거나 부모 PBI에서 증명 가능하면 `(none)` (DoD 5.4: Sub-task 증거는 부모 PBI 증거로 갈음 가능).
+>
+> Epic의 증거는 위 표를 적용하지 않고 `배포 URL` / `릴리즈 노트` / `완료 보고서` 등 비즈니스 산출물로 둔다 (Jira 작성 규칙 3.4).
 
 #### 0-1-SAVE — 신규 `{{CONFIG_PATH}}` 저장
 
-**실행 조건**: 0-1 fallback 경로(config 미설정 → 0-1-PROJECT/SP/AC/EV/SLACK/DEFAULTS 전체 순차 실행)로 진입한 경우에만 실행한다. 0-0c / 0-0a 재지정으로 슬롯별 단독 호출된 경우는 **건너뛴다**(해당 경로는 0-0c의 갱신 로직이 저장 담당). 0-2 오버라이드는 1회성이므로 저장하지 않는다.
+**실행 조건**: 0-1 fallback 경로(config 미설정 → 0-1-PROJECT/SP/AC/EV/SLACK 전체 순차 실행)로 진입한 경우에만 실행한다. 0-0c / 0-0a 재지정으로 슬롯별 단독 호출된 경우는 **건너뛴다**(해당 경로는 0-0c의 갱신 로직이 저장 담당). 0-2 오버라이드는 1회성이므로 저장하지 않는다.
 
 > **[필수] 저장 도구 제한** (0-0c·0-0a와 동일 규약): 사용 가능한 도구는 **`Read`와 `Write` 단 두 가지뿐**이다. `Bash`를 통한 `cat > ... <<EOF`, `echo "..." > ...`, `tee`, 리다이렉션(`>`/`>>`), `sed`/`perl`/`awk`로 config 파일을 작성하는 것을 전부 금지. `mkdir -p`만은 디렉토리 생성을 위해 허용한다. **`Write` 도구가 환경 sandbox 등으로 실패한 경우, `Bash` heredoc 등으로 우회하지 말고 사용자에게 저장 실패 사실을 알리고 중단**한다("config 파일을 저장하지 못했습니다 ({사유}). 세션 값으로 진행할지, 권한을 부여하고 재시도할지 알려주세요." 안내).
 
@@ -321,14 +322,12 @@ AskUserQuestion (단일 선택):
    스토리 포인트 필드: {FIELD_SP}
    AC 필드: {FIELD_AC}
    증거 필드: {FIELD_EV}
-   기본 우선순위: {DEFAULT_PRIORITY}
-   기본 증거 형태: {DEFAULT_EVIDENCE}
 
    ## 알림
    Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
    ```
 
-   (`(none)` 문자열은 사용자가 0-1-SLACK / 0-1-DEFAULTS에서 "사용 안 함" / "설정 안 함"을 선택한 경우 그대로 기록한다. Notion 동기화 등 sprint 계열 스킬을 사용하게 되면 `/sprint-setup`이 `## Notion` 섹션을 incremental로 추가한다 — jira-create 계열은 Notion 섹션을 작성하지 않는다.)
+   (`(none)` 문자열은 사용자가 0-1-SLACK에서 "사용 안 함"을 선택한 경우 그대로 기록한다. Notion 동기화 등 sprint 계열 스킬을 사용하게 되면 `/sprint-setup`이 `## Notion` 섹션을 incremental로 추가한다 — jira-create 계열은 Notion 섹션을 작성하지 않는다.)
 3. 저장 완료 후 안내 출력: `"{{CONFIG_PATH}}에 설정을 저장했습니다. 다음 실행부터는 0-0 config 로드 경로로 진입합니다."`
 4. 본문 `## Step 1`로 진입.
 
