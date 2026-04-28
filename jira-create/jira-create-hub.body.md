@@ -326,15 +326,9 @@ AskUserQuestion (단일 선택):
 
    ## 알림
    Slack 사용자 ID: {SLACK_ID}   # (none)이면 Slack 알림 비활성
-
-   ## Notion
-   스프린트 DB Data Source: YOUR_SPRINT_DB_DATASOURCE_ID
-   스프린트 플래너 DB Data Source: YOUR_PLANNER_DB_DATASOURCE_ID
-   동기화 로그 DB Data Source: YOUR_SYNC_LOG_DB_DATASOURCE_ID
-   업무 템플릿 ID: YOUR_TEMPLATE_PAGE_ID
    ```
 
-   (`(none)` 문자열은 사용자가 0-1-SLACK / 0-1-DEFAULTS에서 "사용 안 함" / "설정 안 함"을 선택한 경우 그대로 기록한다. Notion 섹션은 jira-create 계열에서 사용하지 않으며 `/sprint-setup` 실행 시 채워진다.)
+   (`(none)` 문자열은 사용자가 0-1-SLACK / 0-1-DEFAULTS에서 "사용 안 함" / "설정 안 함"을 선택한 경우 그대로 기록한다. Notion 동기화 등 sprint 계열 스킬을 사용하게 되면 `/sprint-setup`이 `## Notion` 섹션을 incremental로 추가한다 — jira-create 계열은 Notion 섹션을 작성하지 않는다.)
 3. 저장 완료 후 안내 출력: `"{{CONFIG_PATH}}에 설정을 저장했습니다. 다음 실행부터는 0-0 config 로드 경로로 진입합니다."`
 4. 본문 `## Step 1`로 진입.
 

@@ -184,7 +184,7 @@ bash scripts/build-skills.sh --scope project --project-dir <path>
 
 스킬은 환경별 설정 파일을 읽으므로 Jira 프로젝트가 다른 경우 각 프로젝트 디렉토리에서 `/jira-create`를 처음 실행하면 자동으로 그 환경의 config가 생성된다.
 
-> 같은 config 파일은 `sprint/` 스킬 묶음(`/sprint-bootstrap`, `/sprint-sync`, `/sprint-close`)도 공유한다. Notion 동기화를 함께 쓰려면 `/jira-create` 첫 실행으로 Jira 섹션을 채운 뒤 `/sprint-setup`을 실행해 `## Notion` 섹션을 채워라.
+> 같은 config 파일은 `sprint/` 스킬 묶음(`/sprint-bootstrap`, `/sprint-sync`, `/sprint-close`)도 공유한다. `/jira-create` 첫 실행은 `## Jira` / `## 알림` 섹션만 작성하고 Notion 섹션은 작성하지 않는다. Notion 동기화가 필요하면 `/sprint-setup`을 실행해 `## Notion` 섹션을 incremental로 추가한다.
 
 ---
 
